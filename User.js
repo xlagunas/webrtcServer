@@ -104,7 +104,7 @@ userSchema.statics.findMatchingUsers = function(matchingUsername, callback){
                 callback(users);
             }
         });
-}
+};
 
 userSchema.statics.swapRelation = function (idUser, idContact, currentStatus, futureStatus, callback){
     this.findById(idUser, function(error, user){
@@ -114,40 +114,67 @@ userSchema.statics.swapRelation = function (idUser, idContact, currentStatus, fu
             }
         }
     });
-}
+};
+
+userSchema.statics.swapUserRelation = function(user, idContact, currentStatus, futureStatus, callback){
+    user.changeRelationStatus(currentStatus, futureStatus, idContact, callback);
+};
 
 userSchema.statics.createRelation = function(idProposer, idContact, status, callback){
     this.findById(idProposer, function(error, user){
-        user[status].addToSet(idContact);
-        user.save(function(error, savedUser){
-            if (savedUser){
-                User.populate(savedUser,
-                        {  path: 'pending accepted requested blocked',
-                          select: 'name username firstSurname lastSurname email thumbnail'
-                        }
-                        ,function(error, populatedData){
-                            if (!error && populatedData){
-                                callback({
-                                    accepted:   populatedData.accepted,
-                                    requested:  populatedData.requested,
-                                    pending:    populatedData.pending,
-                                    blocked:    populatedData.blocked
-                                });
-                            }else console.log(error)
-                });
-            }
-        });
+        if (error)
+            callback(error);
+        else {
+            userSchema.statics.createUserRelation(user, idContact, status, callback);
+        }
     });
-}
+};
+
+userSchema.statics.createUserRelation = function(user, idContact, status, callback){
+  user[status].addToSet(idContact);
+  user.save(function(error, savedUser){
+      if (error) {
+          callback(error);
+      } else if (savedUser) {
+          User.populate(savedUser,
+              {  path: 'pending accepted requested blocked',
+                  select: 'name username firstSurname lastSurname email thumbnail'
+              }
+              ,function(error, populatedData){
+                  if (!error && populatedData){
+                      callback({
+                          accepted:   populatedData.accepted,
+                          requested:  populatedData.requested,
+                          pending:    populatedData.pending,
+                          blocked:    populatedData.blocked
+                      });
+                  } else
+                      callback(error);
+              });
+      }
+  });
+};
 
 userSchema.statics.listContacts = function(id, callback){
     this
         .findById(id)
-        .populate({ path: 'pending accepted requested blocked',
-                    select: 'name username firstSurname lastSurname email thumbnail'})
         .exec(function(error, populatedData){
             if (!error && populatedData){
-                callback({
+                userSchema.statics.listUserContacts(populatedData, callback);
+            }
+        });
+};
+
+userSchema.statics.listUserContacts = function(user, callback) {
+    User.populate(user,
+        { path: 'pending accepted requested blocked',
+            select: 'name username firstSurname lastSurname email thumbnail'},
+        function(error, populatedData){
+            if (error){
+                callback(error);
+            }
+            else {
+                callback(null, {
                     accepted:   populatedData.accepted,
                     requested:  populatedData.requested,
                     pending:    populatedData.pending,
@@ -155,7 +182,7 @@ userSchema.statics.listContacts = function(id, callback){
                 });
             }
         });
-}
+};
 
 userSchema.statics.exists = function(username, callback){
     this.findOne({username: username}, function(error, user){
@@ -170,7 +197,7 @@ userSchema.statics.exists = function(username, callback){
             return callback(false);
         }
     });
-}
+};
 
 userSchema.methods.changeRelationStatus = function(oldStatus, newStatus, userId, callback){
     console.log('Changing relationship Status!');
@@ -181,18 +208,21 @@ userSchema.methods.changeRelationStatus = function(oldStatus, newStatus, userId,
 
         this.save(function (error, savedUser, numModified) {
             console.log('savedUser: ' + savedUser);
-            if (error)
-                throw error;
-            User.populate(savedUser,
-                {
-                    path: 'pending accepted requested blocked',
-                    select: 'name username firstSurname lastSurname email thumbnail'
-                },
-                callback);
+            if (error){
+                callback(error, null);
+            } else {
+                User.populate(savedUser,
+                    {
+                        path: 'pending accepted requested blocked',
+                        select: 'name username firstSurname lastSurname email thumbnail'
+                    },
+                    callback);
+            }
         });
 
     } else {
         console.log('Couldn\'t change relationship status bc no oldRelation with the user was found!');
+        callback("error", null);
     }
 
 };
