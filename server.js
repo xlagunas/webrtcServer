@@ -13,12 +13,6 @@ mongoose.connect('mongodb://localhost/rest_test');
 
 passport.use(new Strategy(
     function(username, password, cb) {
-        //db.users.findByUsername(username, function(err, user) {
-        //    if (err) { return cb(err); }
-        //    if (!user) { return cb(null, false); }
-        //    if (user.password != password) { return cb(null, false); }
-        //    return cb(null, user);
-        //});
         user.login(username, password, function(callback){
             if (callback.status === "error"){
                 return cb(null, false);
