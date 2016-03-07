@@ -11,6 +11,13 @@ var Mongoose = require('mongoose'),
     _ = require('underscore'),
     ldap = require('./ldap');
 
+var pushNotificationSchema = Mongoose.Schema(
+    {
+        token: { type: String, required: true },
+        expirationDate: { type: Date }
+    }
+);
+
 var userSchema = Mongoose.Schema(
     {
         username: {type: String, index: true, unique: true, required: true},
@@ -26,7 +33,8 @@ var userSchema = Mongoose.Schema(
         requested: [{ type : Mongoose.Schema.ObjectId, ref : 'User' }],
         joinDate: {type: Date, default: Date.now()},
         thumbnail: {type: String, default: 'profile.png'},
-        isLdap: Boolean
+        isLdap: Boolean,
+        uuid: [pushNotificationSchema]
     }
 );
 
@@ -43,7 +51,7 @@ userSchema.set('toJSON', { getters: true, virtuals: true });
 
 userSchema.statics.login = function(username, password, callback){
     this.findOne({username: username})
-        .populate('pending accepted requested blocked')
+        .populate('pending accepted requested blocked token')
         .exec(function(error, user){
             if (!error){
                 if (!user){
