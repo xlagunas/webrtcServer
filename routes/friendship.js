@@ -3,7 +3,6 @@ var router = express.Router();
 var passport = require('passport');
 var user = require('../User.js').User;
 
-
 router.put("/:id", passport.authenticate('basic', {session: false}), function(req, res){
     console.log(req.user._id +':'+ req.params.id);
     user.createRelation(req.user, req.params.id, 'requested', function(contactData){

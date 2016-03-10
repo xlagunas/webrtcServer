@@ -17,6 +17,7 @@
     "express": "^4.13.4",
     "ldapjs": "^1.0.0",
     "mongoose": "^4.4.5",
+    "node-gcm": "^0.14.0",
     "node-restful": "^0.2.5",
     "passport": "^0.3.2",
     "passport-http": "^0.3.0",
