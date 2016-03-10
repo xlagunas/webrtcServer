@@ -2,7 +2,7 @@
 var express = require('express');
 var router = express.Router();
 var passport = require('passport');
-var user = require('../User.js').User;
+var user = require('../User').User;
 var pushNotification = require('../push-sender');
 
 
