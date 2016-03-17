@@ -1,13 +1,31 @@
 var express = require('express');
 var router = express.Router();
 var passport = require('passport');
-var user = require('../User.js').User;
+var user = require('../User').User;
+var _ = require('underscore');
+var pushNotification = require('../push-sender');
+
 
 router.put("/:id", passport.authenticate('basic', {session: false}), function(req, res){
     console.log(req.user._id +':'+ req.params.id);
-    user.createRelation(req.user, req.params.id, 'requested', function(contactData){
-        user.createRelation(req.params.id, req.user._id, 'pending', function(remoteContactData){
-            res.send(contactData)
+    user.createRelation(req.user, req.params.id, 'requested', function(error, contactData){
+        user.createRelation(req.params.id, req.user._id, 'pending', function(error, remoteContactData){
+
+            console.log(contactData);
+
+            if (!error && remoteContactData !== null && remoteContactData.uuid !== null){
+                var tokens = _.pluck(remoteContactData.uuid,'token');
+                console.log("Extracted tokens: "+JSON.stringify(tokens));
+
+                pushNotification.sendMessage(tokens, {'user': req.user, 'type': 'friendship'});
+            }
+
+            res.send({
+                    accepted:   contactData.accepted,
+                    requested:  contactData.requested,
+                    pending:    contactData.pending,
+                    blocked:    contactData.blocked
+                });
         });
     });
 });
