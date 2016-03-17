@@ -5,6 +5,10 @@ var user = require('../User').User;
 var _ = require('underscore');
 var pushNotification = require('../push-sender');
 
+//TODO check where to refactor this
+var friendshipTypeMessage = 1;
+var callTypeMessage = 2;
+
 
 router.put("/:id", passport.authenticate('basic', {session: false}), function(req, res){
     console.log(req.user._id +':'+ req.params.id);
@@ -17,7 +21,12 @@ router.put("/:id", passport.authenticate('basic', {session: false}), function(re
                 var tokens = _.pluck(remoteContactData.uuid,'token');
                 console.log("Extracted tokens: "+JSON.stringify(tokens));
 
-                pushNotification.sendMessage(tokens, {'user': req.user, 'type': 'friendship'});
+                pushNotification.sendMessage(tokens,
+                    {   username: req.user.username,
+                        name: req.user.name + " " +req.user.firstSurname + " "+ req.user.lastSurname,
+                        thumbnail: req.user.thumbnail,
+                        type: friendshipTypeMessage
+                    });
             }
 
             res.send({
