@@ -151,12 +151,13 @@ userSchema.statics.createUserRelation = function(user, idContact, status, callba
               }
               ,function(error, populatedData){
                   if (!error && populatedData){
-                      callback({
-                          accepted:   populatedData.accepted,
-                          requested:  populatedData.requested,
-                          pending:    populatedData.pending,
-                          blocked:    populatedData.blocked
-                      });
+                      //callback({
+                      //    accepted:   populatedData.accepted,
+                      //    requested:  populatedData.requested,
+                      //    pending:    populatedData.pending,
+                      //    blocked:    populatedData.blocked
+                      //});
+                      callback(null, populatedData);
                   } else
                       callback(error);
               });

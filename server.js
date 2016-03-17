@@ -6,7 +6,6 @@ var passport = require('passport');
 var Strategy = require('passport-http').BasicStrategy;
 var user = require('./User.js').User;
 
-
 //MongoDB
 mongoose.connect('mongodb://localhost/rest_test');
 //Authentication stuff
