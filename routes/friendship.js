@@ -29,12 +29,7 @@ router.put("/:id", passport.authenticate('basic', {session: false}), function(re
                     });
             }
 
-            res.send({
-                    accepted:   contactData.accepted,
-                    requested:  contactData.requested,
-                    pending:    contactData.pending,
-                    blocked:    contactData.blocked
-                });
+            res.send(contactData);
         });
     });
 });
