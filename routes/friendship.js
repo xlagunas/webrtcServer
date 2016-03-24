@@ -50,7 +50,7 @@ router.post("/update", passport.authenticate('basic', {session: false}), functio
     var previousState = req.body.previousState;
     var nextState = req.body.nextState;
 
-    if (previousState === 'requested' && nextState == 'accepted'){
+    if (previousState === 'pending' && nextState == 'accepted'){
         acceptFriendship(req.user, req.body.id, callbackHandler(res));
     } else {
         user.swapUserRelation(req.user, req.body.id, req.body.previousState, req.body.nextState, callbackHandler(res));
@@ -74,17 +74,17 @@ router.get("/", passport.authenticate('basic', {session: false}), function (req,
  */
 var acceptFriendship = function (requesterUser, requestedContactId, callback) {
     //update and return the requester of the change
-    user.swapUserRelation(requesterUser, requestedContactId, 'requested', 'accepted', callback);
+    user.swapRelation(requesterUser.id, requestedContactId, 'pending', 'accepted', callback);
     //update and send push notification to the requestee
-    user.swapRelation(requestedContactId, requesterUser._id, 'pending', 'accepted', function (err, user) {
+    user.swapRelation(requestedContactId, requesterUser._id, 'requested', 'accepted', function (err, user) {
         if (err) {
             console.log("Error recovering updating relationship for user id:" + requestedContactId);
         } else {
             pushNotification.sendMessage(user.uuid,
                 {
-                    username: req.user.username,
-                    name: req.user.name + " " + req.user.firstSurname + " " + req.user.lastSurname,
-                    thumbnail: req.user.thumbnail,
+                    username: requesterUser.username,
+                    name: requesterUser.name + " " + requesterUser.firstSurname + " " + requesterUser.lastSurname,
+                    thumbnail: requesterUser.thumbnail,
                     type: friendshipAcceptedTypeMessage
                 });
         }
