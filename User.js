@@ -11,13 +11,6 @@ var Mongoose = require('mongoose'),
     _ = require('underscore'),
     ldap = require('./ldap');
 
-var pushNotificationSchema = Mongoose.Schema(
-    {
-        token: { type: String, required: true },
-        expirationDate: { type: Date }
-    }
-);
-
 var userSchema = Mongoose.Schema(
     {
         username: {type: String, index: true, unique: true, required: true},
@@ -34,7 +27,7 @@ var userSchema = Mongoose.Schema(
         joinDate: {type: Date, default: Date.now()},
         thumbnail: {type: String, default: 'profile.png'},
         isLdap: Boolean,
-        uuid: [pushNotificationSchema]
+        uuid: [{type: String}]
     }
 );
 
@@ -151,7 +144,7 @@ userSchema.statics.createUserRelation = function(user, idContact, status, callba
               }
               ,function(error, populatedData){
                   if (!error && populatedData){
-                      console.log(populatedData)
+                      console.log(populatedData);
                       callback(null, populatedData);
                   } else
                       callback(error);
@@ -234,3 +227,14 @@ userSchema.methods.changeRelationStatus = function(oldStatus, newStatus, userId,
 
 var User = Mongoose.model('User', userSchema);
 exports.User = User;
+
+//function test() {
+//    Mongoose.connect('mongodb://localhost/rest_test');
+//
+//    User.swapRelation('56f3ee29e1c569f54e5d3e45', '56f3ee20e1c569f54e5d3e44', 'accepted', 'pending', function (err, us) {
+//        console.log(err);
+//        console.log(us);
+//    });
+//}
+//
+//test();

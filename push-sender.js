@@ -24,6 +24,8 @@ var sendMessage = function (tokens, message){
             if (err) console.error(err);
             else console.log(response);
         });
+    } else {
+        console.log("Not sending push notifications, no tokens found");
     }
 };
 

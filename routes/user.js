@@ -45,13 +45,13 @@ router.delete(':id', function(req, res){
 });
 
 router.put('/token',passport.authenticate('basic', {session: false}), function(req, res){
-   req.user.uuid.push(req.body);
+   req.user.uuid.push(req.body.token);
    req.user.save(function(error, user){
       if (error) {
          res.sendStatus(500);
          console.log(error);
       } else {
-         console.log("Token stored successfully")
+         console.log("Token stored successfully");
          res.send(user);
       }
    });
