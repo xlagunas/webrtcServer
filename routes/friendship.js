@@ -18,7 +18,7 @@ router.put("/:id", passport.authenticate('basic', {session: false}), function (r
         user.createRelation(req.params.id, req.user._id, 'pending', function (error, remoteContactData) {
 
             if (!error && remoteContactData !== null && remoteContactData.uuid !== null) {
-                var tokens = _.pluck(remoteContactData.uuid, 'token');
+                var tokens = remoteContactData.uuid;
                 console.log("Extracted tokens: " + JSON.stringify(tokens));
 
                 pushNotification.sendMessage(tokens,
@@ -51,9 +51,9 @@ router.post("/update", passport.authenticate('basic', {session: false}), functio
     var nextState = req.body.nextState;
 
     if (previousState === 'requested' && nextState == 'accepted'){
-        acceptFriendship(req.user, req.body.id, callbackHandler);
+        acceptFriendship(req.user, req.body.id, callbackHandler(res));
     } else {
-        user.swapUserRelation(req.user, req.body.id, req.body.previousState, req.body.nextState, callbackHandler);
+        user.swapUserRelation(req.user, req.body.id, req.body.previousState, req.body.nextState, callbackHandler(res));
     }
 
 
@@ -61,7 +61,7 @@ router.post("/update", passport.authenticate('basic', {session: false}), functio
 });
 
 router.get("/", passport.authenticate('basic', {session: false}), function (req, res) {
-    user.listUserContacts(req.user, callbackHandler);
+    user.listUserContacts(req.user, callbackHandler(res));
 });
 /**
  * This function updates the friendship status in both sides, the requester is updated from requested to accepted
@@ -74,11 +74,11 @@ router.get("/", passport.authenticate('basic', {session: false}), function (req,
  */
 var acceptFriendship = function (requesterUser, requestedContactId, callback) {
     //update and return the requester of the change
-    user.swapUserRelation(req.user, req.body.id, 'requested', 'accepted', callback);
+    user.swapUserRelation(requesterUser, requestedContactId, 'requested', 'accepted', callback);
     //update and send push notification to the requestee
-    user.swapRelation(req.body.id, req.user._id, 'pending', 'accepted', function (err, user) {
+    user.swapRelation(requestedContactId, requesterUser._id, 'pending', 'accepted', function (err, user) {
         if (err) {
-            console.log("Error recovering updating relationship for user id:" + req.body.id);
+            console.log("Error recovering updating relationship for user id:" + requestedContactId);
         } else {
             pushNotification.sendMessage(user.uuid,
                 {
@@ -96,12 +96,14 @@ var acceptFriendship = function (requesterUser, requestedContactId, callback) {
  * @param err
  * @param user
  */
-var callbackHandler = function (err, user) {
-    if (err) {
-        res.sendStatus(404);
-    } else {
-        res.send(user);
-    }
+var callbackHandler = function (res) {
+    return function(err, user) {
+        if (err) {
+            res.sendStatus(404);
+        } else {
+            res.send(user);
+        }
+    };
 };
 
 module.exports = router;
