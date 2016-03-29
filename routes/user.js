@@ -5,15 +5,6 @@ var passport = require('passport');
 var user = require('../User').User;
 var pushNotification = require('../push-sender');
 
-
-//get user
-router.get('/:username', passport.authenticate('basic', {session: false}), function(req, res){
-   console.log(req.user);
-   user.findMatchingUsers(req.params.username, function(user){
-      res.send(user);
-   });
-});
-
 //login user
 router.post('/login', function(req, res){
    user.login(req.body.username, req.body.password, function(callback){
@@ -39,9 +30,21 @@ router.put('/', function(req, res){
    });
 });
 
+router.get('/profile', passport.authenticate('basic', {session: false}), function(req, res){
+   res.send(req.user);
+});
+
 //Delete new user
-router.delete(':id', function(req, res){
+router.delete('/:id', function(req, res){
    res.send('remove');
+});
+
+//get user
+router.get('/:username', passport.authenticate('basic', {session: false}), function(req, res){
+   console.log(req.user);
+   user.findMatchingUsers(req.params.username, function(user){
+      res.send(user);
+   });
 });
 
 router.put('/token',passport.authenticate('basic', {session: false}), function(req, res){
