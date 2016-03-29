@@ -44,52 +44,18 @@ userSchema.set('toJSON', { getters: true, virtuals: true });
 
 userSchema.statics.login = function(username, password, callback){
     this.findOne({username: username})
-        .populate('pending accepted requested blocked token')
+        .populate(
+            {   path: 'pending accepted requested blocked',
+                select: 'name username firstSurname lastSurname email thumbnail'
+            })
         .exec(function(error, user){
-            if (!error){
-                if (!user){
-                    console.log('User not in db, checking ldap');
-                    ldap.ldapLogin(username, password, function(data){
-                        if (data.status === 'error'){
-                            callback({status: 'error', msg: 'user not found'});
-                        }
-                        else{
-                            data.user.isLdap = true;
-                            User.create(data.user, function(error, newLdapUser){
-                                if (!error){
-                                    console.log('new ldapUser has been created');
-                                    callback({status: 'success', user: newLdapUser});
-                                }else{
-                                    console.log(error);
-                                }
-                            });
-                        }
-                    });
-                }
-                else{
-                    if (user && user.isLdap){
-                        ldap.ldapLogin(username, password, function(data){
-                            console.log('validating ldap user');
-                            if (data.status === 'error'){
-                                console.log('ldap user error');
-                                callback({status: 'error', msg: 'password doesn\'t match'});
-                            }
-                            else{
-                                console.log('ldap successfull authentication:)')
-                                callback({status: 'success', user: user});
-                            }
-                        });
-                    }
-                    else{
-                        if (user.password === password){
-                            callback({status: 'success', user: user});
-                        }
-                        else{
-                            callback({status: 'error', msg: 'password doesn\'t match'})
-                        }
-                    }
-                }
+            if (!error && user.password == password){
+                callback({status: 'success', user: user});
             }
+            else{
+                callback({status: 'error', msg: 'password doesn\'t match'})
+            }
+
         });
 };
 
