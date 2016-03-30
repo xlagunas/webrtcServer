@@ -110,7 +110,6 @@ userSchema.statics.createUserRelation = function(user, idContact, status, callba
               }
               ,function(error, populatedData){
                   if (!error && populatedData){
-                      console.log(populatedData);
                       callback(null, populatedData);
                   } else
                       callback(error);
