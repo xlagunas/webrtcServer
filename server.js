@@ -23,6 +23,7 @@ passport.use(new Strategy(
 
 //Express
 var app = express();
+
 app.use(bodyParser.urlencoded({ extended: true}));
 app.use(bodyParser.json());
 
@@ -30,5 +31,15 @@ app.use(bodyParser.json());
 app.use('/user', require('./routes/user'));
 app.use('/friendship', require('./routes/friendship'));
 
-app.listen(3000);
-console.log('Listening on port 3000');
+app.get('/', function (req, res) {
+    res.sendFile(__dirname + '/app/index.html');
+});
+
+const server = app.listen(3000, function(){
+    console.log('Listening on port 3000');
+});
+
+const io = require('socket.io')(server);
+
+
+io.on('connection', require('./websocket'));
