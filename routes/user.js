@@ -10,6 +10,7 @@ router.post('/login', function(req, res){
    user.login(req.body.username, req.body.password, function(callback){
 
       if (callback.status === "success"){
+         console.log(req.body.username +"logged");
          res.send(callback.user);
       } else {
          res.sendStatus(400);
@@ -31,6 +32,7 @@ router.put('/', function(req, res){
 });
 
 router.get('/profile', passport.authenticate('basic', {session: false}), function(req, res){
+   console.log("Hitting profile request");
    res.send(req.user);
 });
 
@@ -41,7 +43,6 @@ router.delete('/:id', function(req, res){
 
 //get user
 router.get('/:username', passport.authenticate('basic', {session: false}), function(req, res){
-   console.log(req.user);
    user.findMatchingUsers(req.params.username, function(user){
       res.send(user);
    });
