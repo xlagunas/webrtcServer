@@ -31,6 +31,15 @@ app.use(bodyParser.json());
 app.use('/user', require('./routes/user'));
 app.use('/friendship', require('./routes/friendship'));
 
+//enable CORS filter
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    next();
+});
+
+
+
 app.get('/', function (req, res) {
     res.sendFile(__dirname + '/app/index.html');
 });
