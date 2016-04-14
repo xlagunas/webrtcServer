@@ -21,7 +21,7 @@
     "node-restful": "^0.2.5",
     "passport": "^0.3.2",
     "passport-http": "^0.3.0",
-    "socket.io": "^1.4.5",
+    "socket.io": "^0.9.17",
     "underscore": "^1.8.3"
   }
 }

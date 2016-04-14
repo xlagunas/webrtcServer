@@ -49,7 +49,7 @@ userSchema.statics.login = function(username, password, callback){
                 select: 'name username firstSurname lastSurname email thumbnail'
             })
         .exec(function(error, user){
-            if (!error && user.password == password){
+            if (!error && user && user.password !== null && user.password == password){
                 callback({status: 'success', user: user});
             }
             else{
