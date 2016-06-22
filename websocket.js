@@ -47,38 +47,43 @@ var ws = function (socket) {
 
     socket.on('user:create', function (msg) {
         var encodingType;
-        if (msg.thumbnail.indexOf("jpeg") !== -1){
-            encodingType = "jpeg";
-        } else if (msg.thumbnail.indexOf("png") != -1){
-            encodingType = "png";
-        } else if (msg.thumbnail.indexOf("jpg") != -1){
-            encodingType = "jpg"
-        } else {
-            log.warn("No encoding type found for current image")
-        }
-        if (encodingType !== -1) {
-            var base64Image =generateBase64Image(msg.thumbnail);
-            fs.writeFile('./app/images/' + msg.username + '.'+encodingType, base64Image, 'base64', function (err) {
-                if (err)
-                    console.log(err);
-            });
-            msg.thumbnail = msg.username + '.'+encodingType;
-            console.log('./'+msg.username+'.' +encodingType);
+        if (msg.thumbnail) {
+            if (msg.thumbnail.indexOf("jpeg") !== -1) {
+                encodingType = "jpeg";
+            } else if (msg.thumbnail.indexOf("png") != -1) {
+                encodingType = "png";
+            } else if (msg.thumbnail.indexOf("jpg") != -1) {
+                encodingType = "jpg"
+            } else {
+                log.warn("No encoding type found for current image")
+            }
+            if (encodingType !== -1) {
+                var base64Image = decodeBase64Image(msg.thumbnail);
+                fs.writeFile('./app/images/' + msg.username + '.' + encodingType, base64Image.data, 'base64', function (err) {
+                    if (err)
+                        console.log(err);
+                });
+                msg.thumbnail = msg.username + '.' + encodingType;
+                console.log('./' + msg.username + '.' + encodingType);
+            }
         }
         User.create(msg, function(error, newUser){
             if (error) throw error;
             socket.emit('user:create', newUser);
         });
     });
+    function decodeBase64Image(dataString) {
+        var matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/),
+            response = {};
 
-    function generateBase64Image(image) {
-        var code = 'base64,';
-        var index = image.indexOf(code);
-        image = image.substring(index+code.length);
-        if (image.indexOf('/') == 0){
-            image = image.substring(1);
+        if (matches.length !== 3) {
+            return new Error('Invalid input string');
         }
-        return image;
+
+        response.type = matches[1];
+        response.data = new Buffer(matches[2], 'base64');
+
+        return response;
     }
 
     //type = camera or image
