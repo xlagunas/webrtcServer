@@ -13,6 +13,7 @@
   "author": "xlagunas@gmail.com",
   "license": "ISC",
   "dependencies": {
+    "async": "^2.0.0-rc.6",
     "body-parser": "^1.15.0",
     "express": "^4.13.4",
     "ldapjs": "^1.0.0",
@@ -21,6 +22,7 @@
     "node-restful": "^0.2.5",
     "passport": "^0.3.2",
     "passport-http": "^0.3.0",
+    "socket.io": "^0.9.17",
     "underscore": "^1.8.3"
   }
 }

@@ -23,12 +23,31 @@ passport.use(new Strategy(
 
 //Express
 var app = express();
+
 app.use(bodyParser.urlencoded({ extended: true}));
 app.use(bodyParser.json());
 
 //Routes
 app.use('/user', require('./routes/user'));
 app.use('/friendship', require('./routes/friendship'));
+app.use('/images', express.static(__dirname + '/app/images'));
 
-app.listen(3000);
-console.log('Listening on port 3000');
+app.get('/', function (req, res) {
+    res.sendFile(__dirname + '/app/index.html');
+});
+
+//enable CORS filter
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    next();
+});
+
+const server = app.listen(3000, function(){
+    console.log('Listening on port 3000');
+});
+
+var io = require('socket.io').listen(server);
+
+io.set('log level', 1);
+io.on('connection', require('./websocket')(io.sockets));
