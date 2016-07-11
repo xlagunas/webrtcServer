@@ -16,9 +16,9 @@ var ws = function (socket) {
         if (msg && msg.username && msg.password){
             User.login(msg.username, msg.password, function(data){
                 if (data.status === 'success'){
-                    socket.set('username', data.user.username);
-                    socket.set('id', data.user.id);
-                    socket.set('status', 'ONLINE');
+                    socket.username = data.user.username;
+                    socket._id = data.user.id;
+                    socket.status = 'ONLINE';
 
                     socket.emit('login', data);
 
@@ -175,8 +175,7 @@ var ws = function (socket) {
     });
 
     socket.on('contacts:propose', function(msg){
-        socket.get('id', function(error, idProposer){
-
+        getSocketProperty(socket, 'id', function(idProposer){
             User.createRelation(idProposer, msg._id, 'pending', function(data){
                 if (data){
                     socket.emit('contacts:update', data);
@@ -186,9 +185,7 @@ var ws = function (socket) {
             User.createRelation(msg._id, idProposer, 'requested', function(contactData){
                 if (contactData){
                     websockets.clients().forEach(function(socketContact){
-                        socketContact.get('id', function(err, idContact){
-                            if (err)
-                                throw err;
+                        getSocketProperty(socketContact, 'id', function(idContact){
                             if (idContact === msg._id){
                                 socketContact.emit('contacts:update', contactData);
                             }
@@ -208,13 +205,11 @@ var ws = function (socket) {
                 console.log(error);
             }
             else{
-                socket.get('id', function(error, idUser){
-                    if (!error && idUser){
-                        CalendarEvent.getUserEvents(idUser, function(data){
-                            console.log(data);
-                            socket.emit('calendar:getEvents', data);
-                        });
-                    }
+                getSocketProperty(socket, 'id', function(idUser){
+                    CalendarEvent.getUserEvents(idUser, function(data){
+                        console.log(data);
+                        socket.emit('calendar:getEvents', data);
+                    });
                 });
             }
         });
@@ -223,41 +218,32 @@ var ws = function (socket) {
     socket.on('calendar:removeUser', function (msg){
         console.log('calendar:removeUser');
         console.log('id: '+msg.id);
-        socket.get('id', function(error, idUser){
-            if (!error && idUser){
-                CalendarEvent.findById(msg.id, function(error, event){
-                    event.delUser(idUser, function(){
-                        CalendarEvent.getUserEvents(idUser, function(data){
-                            console.log(data);
-                            socket.emit('calendar:getEvents', data);
-                        });
+        getSocketProperty(socket, 'id', function(idUser){
+            CalendarEvent.findById(msg.id, function(error, event){
+                event.delUser(idUser, function(){
+                    CalendarEvent.getUserEvents(idUser, function(data){
+                        console.log(data);
+                        socket.emit('calendar:getEvents', data);
                     });
                 });
-            }
+            });
         });
     });
 
     socket.on('calendar:getEvents', function(msg){
         console.log('calendar:getEvents');
-        socket.get('id', function(error, idUser){
-            if (!error && idUser){
-                CalendarEvent.getUserEvents(idUser, function(data){
-                    socket.emit('calendar:getEvents', data);
-                });
-            }
+        getSocketProperty(socket, 'id', function(idUser){
+            CalendarEvent.getUserEvents(idUser, function(data){
+                socket.emit('calendar:getEvents', data);
+            });
         });
     });
 
     socket.on('disconnect', function () {
-        socket.set('status', 'OFFLINE');
-        socket.get('id', function(error, id){
-            if (!error){
-                notifyDisconnectionToContacts(id, socket);
+        socket.status = 'OFFLINE';
+        getSocketProperty(socket, 'id', function(id){
+            notifyDisconnectionToContacts(id, socket);
                 socket.leave(id);
-            }
-            else{
-                console.log('unknown user disconnected');
-            }
         });
     });
 
@@ -273,25 +259,20 @@ var ws = function (socket) {
 
     //callback is a function whose first parameter is the proposerId
     function getSocketProperty(socket, paramName, callback) {
-        socket.get(paramName, function(err, idProposer){
-            if (!err && idProposer) {
-                if (callback) callback(idProposer);
-            }
-        });
+        //id variable is used by the system in the newer versions so we alias our own
+        var paramName = (paramName === 'id') ? '_id' : paramName;
+        if (callback) {
+            callback(socket[paramName]);
+        }
     }
 
     function findContactSocketById(currentUserId, contactId, callback) {
-        var clients = (currentUserId === null)
-            ? websockets.clients()
-            : websockets.clients(currentUserId);
-
-        clients.forEach( function(socket) {
-            getSocketProperty(socket, 'id', function (socketId) {
-                if (socketId === contactId){
-                    if (callback) callback(socket);
-                }
-            });
-        });
+        var clients = websockets.connected;
+        for (var socketName in clients){
+            if (clients[socketName]._id === contactId && callback){
+                callback(clients[socketName]);
+            }
+        }
     }
 
     function findSocketById(id, callback){
@@ -457,24 +438,33 @@ var ws = function (socket) {
     });
 
     socket.on('call:userDetails', function(msg){
-        socket.get('id', function(err, id){
-            if (!err && id){
-                User.findById(id, 'username name firstSurname lastSurname thumbnail email', function(error, user){
-                    if (!error && user){
-                        websockets.clients('call:'+msg.idCall).forEach(function(contact){
-                            contact.get('id', function(errId, idContact){
-                                if (!errId && idContact){
-                                    if (idContact === msg.idUser){
-                                        contact.emit('call:userDetails', user);
-                                    }
-                                }
-                            });
-                        });
-                    }
-                });
-            }
+        getSocketProperty(socket, 'id', function(id){
+            User.findById(id, 'username name firstSurname lastSurname thumbnail email', function(error, user){
+                if (!error && user){
+                    findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
+                        socket.emit('call:userDetails', user);
+                    });
+                }
+            });
         });
     });
+
+    function findContactInRoom(roomName, contactId, callback){
+        var room = websockets.adapter.rooms[roomName];
+        var found = false;
+
+        for (var socketName in room.sockets){
+            var contactSocket = websockets.connected[socketName];
+            if (contactSocket._id === contactId && callback){
+                callback(contactSocket);
+                found = true;
+            }
+        }
+
+        if (!found){
+            console.log("not found contact in Room");
+        }
+    }
 
 
     socket.on('call:hangup', function (msg){
@@ -485,52 +475,28 @@ var ws = function (socket) {
 
     socket.on('webrtc:offer', function(msg){
         console.log('webrtc:offer');
-        socket.get('id', function(err, id){
-            if (!err && id){
-                websockets.clients('call:'+msg.idCall).forEach(function(contact){
-                    contact.get('id', function(errContact, idContact){
-                        if (!errContact && idContact){
-                            if (idContact === msg.idUser){
-                                contact.emit(id+':offer', msg.offer);
-                            }
-                        }
-                    });
-                });
-            }
+        getSocketProperty(socket, 'id', function(id){
+            findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
+                socket.emit(id+':offer', msg.offer);
+            });
         });
     });
 
     socket.on('webrtc:answer', function(msg){
         console.log('webrtc:answer');
-        socket.get('id', function(err, id){
-            if (!err && id){
-                websockets.clients('call:'+msg.idCall).forEach(function(contact){
-                    contact.get('id', function(errContact, idContact){
-                        if (!errContact && idContact){
-                            if (idContact === msg.idUser){
-                                contact.emit(id+':answer', msg.answer);
-                            }
-                        }
-                    });
-                });
-            }
+        getSocketProperty(socket, 'id', function(id){
+            findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
+                socket.emit(id+':answer', msg.answer);
+            });
         });
     });
 
     socket.on('webrtc:iceCandidate', function(msg){
-        console.log('webrtc:iceCandidate');
-        socket.get('id', function(err, id){
-            if (!err && id){
-                websockets.clients('call:'+msg.idCall).forEach(function(contact){
-                    contact.get('id', function(errContact, idContact){
-                        if (!errContact && idContact){
-                            if (idContact === msg.idUser){
-                                contact.emit(id+':iceCandidate', msg.candidate);
-                            }
-                        }
-                    });
-                });
-            }
+        console.log('webrtc:iceCandidate '+socket._id);
+        getSocketProperty(socket, 'id', function(id){
+            findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
+                socket.emit(id+':iceCandidate', msg.candidate);
+            });
         });
     });
 };
