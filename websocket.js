@@ -22,7 +22,6 @@ var ws = function (socket) {
                     socket.status = 'ONLINE';
 
                     socket.emit('login', data);
-
                 }
             });
         }
@@ -30,7 +29,7 @@ var ws = function (socket) {
 
     socket.on('roster:ack', function (msg) {
         console.log('roster:ack');
-        findContactSocketById(idProposer, msg.id, function (socketContact) {
+        findContactSocketById(socket.id, msg.id, function (socketContact) {
             socketContact.emit('roster:ack', {id: socket.id, status: socket.status});
         });
     });
@@ -108,11 +107,10 @@ var ws = function (socket) {
                 console.log(data);
                 socket.emit('contacts:update', data);
                 data.accepted.forEach(function(contact){
-                    console.log('subscribing user: '+id+' to '+contact.id);
-                    socket.join(contact.id);
+                    findSocketById(contact.id, function(socket){
+                        socket.emit('roster:update', {id: id, status: 'ONLINE'});
+                    });
                 });
-                console.log('broadcasting to Room: '+id);
-                socket.broadcast.to(id).emit('roster:update', {id: id, status: 'ONLINE'});
             }
         });
     });
@@ -133,8 +131,6 @@ var ws = function (socket) {
                 }
             ],  function (error, results) {
                 if (!error){
-                    results[0].socket.join(results[0].joinTo);
-                    results[1].socket.join(results[1].joinTo);
                     sendRosterUpdate(results[0].socket, results[1].socket);
                     sendRosterUpdate(results[1].socket, results[0].socket);
 
@@ -168,46 +164,32 @@ var ws = function (socket) {
     });
 
     socket.on('contacts:propose', function(msg){
-        socket.get('id', function(error, idProposer){
 
-            User.createRelation(idProposer, msg._id, 'pending', function(data){
-                if (data){
-                    socket.emit('contacts:update', data);
-                }
-            });
+        User.createRelation(socket.id, msg._id, 'pending', function(data){
+            if (data){
+                socket.emit('contacts:update', data);
+            }
+        });
 
-            User.createRelation(msg._id, idProposer, 'requested', function(contactData){
-                if (contactData){
-                    websockets.clients().forEach(function(socketContact){
-                        socketContact.get('id', function(err, idContact){
-                            if (err)
-                                throw err;
-                            if (idContact === msg._id){
-                                socketContact.emit('contacts:update', contactData);
-                            }
-                        });
-                    });
-                }
-            });
+        User.createRelation(msg._id, socket.id, 'requested', function(contactData){
+            if (contactData){
+                websockets.clients().forEach(function(socketContact){
+                    if (socketContact.id === msg._id){
+                        socketContact.emit('contacts:update', contactData);
+                    }
+                });
+            }
         });
     });
 
     socket.on('calendar:createEvent', function(msg){
         console.log('calendar:createEvent');
-        console.log('msg');
 
         CalendarEvent.create(msg, function(error, event){
-            if (error){
-                console.log(error);
-            }
-            else{
-                socket.get('id', function(error, idUser){
-                    if (!error && idUser){
-                        CalendarEvent.getUserEvents(idUser, function(data){
-                            console.log(data);
-                            socket.emit('calendar:getEvents', data);
-                        });
-                    }
+            if (!error){
+                CalendarEvent.getUserEvents(socket.id, function(data){
+                    console.log(data);
+                    socket.emit('calendar:getEvents', data);
                 });
             }
         });
@@ -254,15 +236,16 @@ var ws = function (socket) {
     });
 
     function findContactSocketById(currentUserId, contactId, callback) {
-        var clients = (currentUserId === null)
-            ? websockets.clients()
-            : websockets.clients(currentUserId);
-
-        clients.forEach(function (socket) {
+        //TODO CHECK WHAT WE WANTED TO DO HERE BEFORE (I think its just search for one user contact (inside the main room, or inside the current user's room)
+        var clients = websockets.connected;
+        for (var field in clients) {
+            var socket = clients[field];
             if (socket.id === contactId) {
-                if (callback) callback(socket);
+                if (callback) {
+                    callback(socket);
+                }
             }
-        });
+        }
     }
 
     function findSocketById(id, callback){
@@ -330,7 +313,7 @@ var ws = function (socket) {
     }
 
     function sendRosterUpdate(sourceSocket, destinationSocket) {
-        destinationSocket.emit('roster:update', {id: socket.id, status: socket.status})
+        destinationSocket.emit('roster:update', {id: sourceSocket.id, status: sourceSocket.status})
     }
 
     function updateSelfStatus(sourceSocket) {
@@ -395,7 +378,7 @@ var ws = function (socket) {
             if (!err && user){
                 console.log('user: '+socket.id+' joined call room: '+msg.id);
                 socket.join('call:'+msg.id);
-                socket.broadcast.to('call:'+msg.id).emit('call:addUser', user);
+                socket.broadcast.in('call:'+msg.id).emit('call:addUser', user);
             }
         });
     });
@@ -404,7 +387,7 @@ var ws = function (socket) {
         User.findById(socket.id, function (err, user){
             if (!err && user){
                 console.log('user: '+socket.id+' left call room: '+msg.id);
-                socket.broadcast.to('call:'+msg.id).emit('call:removeUser', user);
+                socket.broadcast.in('call:'+msg.id).emit('call:removeUser', user);
                 socket.leave('call:'+msg.id);
             }
         });
