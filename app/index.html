@@ -1,3 +1,14 @@
+<html lang="en">
+
+<body>
+<form action="/user/image" enctype="multipart/form-data" method="post">
+  File <input type="file" name="thumbnail" accept="image/*">
+  <input type="text" name="username" value="xlagunas">
+  <input type="submit" value="Upload">
+</form>
+</body>
+</html>
+
 <script src="/socket.io/socket.io.js"></script>
 <script>
   var socket = io.connect('http://localhost:3000');

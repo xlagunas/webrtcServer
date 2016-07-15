@@ -6,6 +6,10 @@ var passport = require('passport');
 var Strategy = require('passport-http').BasicStrategy;
 var user = require('./User.js').User;
 
+var multer = require('multer');
+
+var upload = multer({dest: './app/images'});
+
 //MongoDB
 mongoose.connect('mongodb://localhost/rest_test');
 //Authentication stuff
@@ -23,6 +27,20 @@ passport.use(new Strategy(
 
 //Express
 var app = express();
+
+app.post('/user/image', upload.single('thumbnail'), function (req, res, next) {
+    // req.file is the `avatar` file
+    // req.body will hold the text fields, if there were any
+
+    console.log("entra!");
+
+    console.log(req.body); // form fields
+    console.log(req.file);
+
+    res.sendStatus(204);
+
+
+});
 
 app.use(bodyParser.urlencoded({ extended: true}));
 app.use(bodyParser.json());
