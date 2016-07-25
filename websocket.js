@@ -9,8 +9,8 @@ var async         = require('async');
 var fs            = require('fs');
 
 var websockets;
-
-var ws = function (socket) {
+var ws = {};
+ws.sockets = function (socket) {
 
     socket.on('login', function(msg){
         console.log('login:' +msg);
@@ -267,19 +267,6 @@ var ws = function (socket) {
         }
     }
 
-    function findContactSocketById(currentUserId, contactId, callback) {
-        var clients = websockets.connected;
-        for (var socketName in clients){
-            if (clients[socketName]._id === contactId && callback){
-                callback(clients[socketName]);
-            }
-        }
-    }
-
-    function findSocketById(id, callback){
-        findContactSocketById(null, id, callback);
-    }
-
     function createCall (callerId, calleeId, callback) {
         Call.create({caller: callerId, callee: [calleeId]}, function (error, call){
             if (!error && call) {
@@ -501,6 +488,29 @@ var ws = function (socket) {
         });
     });
 };
+
+function findContactSocketById(currentUserId, contactId, callback, notFoundCallback) {
+    var clients = websockets.connected;
+    var found = false;
+    for (var socketName in clients){
+        if (clients[socketName]._id === contactId && callback){
+            found = true;
+            callback(clients[socketName]);
+        }
+    }
+    //this method and callbacks are only intended for android compatibility
+    if (!found){
+        notFoundCallback();
+    }
+
+}
+
+function findSocketById(id, callback, notFoundCallback){
+    findContactSocketById(null, id, callback, notFoundCallback);
+}
+
+ws.findsocket = findSocketById;
+
 
 module.exports = function(sockets){
     websockets = sockets;

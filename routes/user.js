@@ -104,7 +104,13 @@ router.post('/push', passport.authenticate('basic', {session: false}), function(
 
 
 router.post('/call/:id', passport.authenticate('basic', {session: false}), function(req, res){
+   websocket.findSocket(req.params.id,
+       function(socket){
 
+       },
+       function(){
+
+   })
 });
 
 
