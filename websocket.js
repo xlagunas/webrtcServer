@@ -13,15 +13,16 @@ var websockets;
 var ws = function (socket) {
 
     socket.on('login', function(msg){
+        console.log('login:' +msg);
         if (msg && msg.username && msg.password){
             User.login(msg.username, msg.password, function(data){
                 if (data.status === 'success'){
                     socket.username = data.user.username;
                     socket._id = data.user.id;
                     socket.status = 'ONLINE';
-
-                    socket.emit('login', data);
-
+                    if (!msg.type || msg.type !== "ANDROID") {
+                        socket.emit('login', data);
+                    }
                 }
             });
         }

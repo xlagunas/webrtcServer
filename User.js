@@ -162,6 +162,20 @@ userSchema.statics.exists = function(username, callback){
     });
 };
 
+userSchema.methods.updateImage = function(filename, callback){
+    this.thumbnail = filename;
+    this.save(function (error, savedUser, numModified) {
+        if (error){
+            callback(error, null);
+        } else {
+            User.populate(savedUser, {
+                path: 'pending accepted requested blocked',
+                select: 'name username firstSurname lastSurname email thumbnail'
+            }, callback);
+        }
+    });
+};
+
 userSchema.methods.changeRelationStatus = function(oldStatus, newStatus, userId, callback){
     console.log('Changing relationship Status!');
 
