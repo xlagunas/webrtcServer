@@ -7,23 +7,23 @@ var User =          require('./User').User;
 var CalendarEvent = require('./CalEvent').CalendarEvent;
 var async         = require('async');
 var fs            = require('fs');
+var userManager = require('./managers/userManager');
 
 var websockets;
 var ws = {};
 ws.sockets = function (socket) {
 
     socket.on('login', function(msg){
-        console.log('login:' +msg);
-        if (msg && msg.username && msg.password){
-            User.login(msg.username, msg.password, function(data){
-                if (data.status === 'success'){
-                    socket.username = data.user.username;
-                    socket._id = data.user.id;
-                    socket.status = 'ONLINE';
-                    if (!msg.type || msg.type !== "ANDROID") {
-                        socket.emit('login', data);
-                    }
+        if (msg && msg.username && msg.password) {
+            userManager.login(msg.username, msg.password, function (data) {
+                socket.username = data.username;
+                socket._id = data.id;
+                socket.status = 'ONLINE';
+                if (!msg.type || msg.type !== "ANDROID") {
+                    socket.emit('login', data);
                 }
+            }, function (error) {
+                socket.emit('loginError', error);
             });
         }
     });
@@ -39,9 +39,8 @@ ws.sockets = function (socket) {
         });
     });
 
-
     socket.on('user:existing', function (msg){
-        User.exists(msg.username, function(exists){
+        userManager.userExist(msg.username, function(exists){
             socket.emit('user:existing', exists);
         });
     });
@@ -68,10 +67,14 @@ ws.sockets = function (socket) {
                 console.log('./' + msg.username + '.' + encodingType);
             }
         }
-        User.create(msg, function(error, newUser){
-            if (error) throw error;
-            socket.emit('user:create', newUser);
+
+        userManager.createUser(msg, function(user){
+            socket.emit('user:create', user);
+        }, function(error){
+            //TODO FRONTEND NOT IMPLEMENTED YET
+            socket.emit('user:createError', {error: error.errmsg});
         });
+
     });
     function decodeBase64Image(dataString) {
         var matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/),
@@ -108,21 +111,23 @@ ws.sockets = function (socket) {
 
     socket.on('contacts:list', function(msg){
         getSocketProperty(socket, 'id', function (id){
-            console.log('id:' +id);
-            User.listContacts(id, function(error, data){
-                if (!error){
-                    console.log(data);
-                    socket.emit('contacts:update', data);
-                    data.accepted.forEach(function(contact){
-                        console.log('subscribing user: '+id+' to '+contact.id);
-                        socket.join(contact.id);
-                    });
-                    console.log('broadcasting to Room: '+id);
-                    socket.broadcast.to(id).emit('roster:update', {id: id, status: 'ONLINE'});
-                }
+            userManager.listAllContacts(id, function(contacts){
+                socket.emit('contacts:update', contacts);
+                notifyContactsUserConnected(id, contacts.accepted);
+            }, function(error){
+                console.log('Error' +error);
             });
         });
     });
+
+    function notifyContactsUserConnected(userId, contacts){
+        contacts.forEach(function(contact){
+            console.log('------ subscribing user: '+userId+ ' to ' +contact.id);
+            socket.join(contact.id);
+        });
+        console.log('+++++++ broadcasting roster:update to '+userId+' room');
+        socket.broadcast.to(userId).emit('roster:update', {id: userId, status: 'ONLINE'})
+    }
 
     socket.on('contacts:update_list', function (msg){
         console.log('Entra al contacts:update_list');
@@ -499,7 +504,7 @@ function findContactSocketById(currentUserId, contactId, callback, notFoundCallb
         }
     }
     //this method and callbacks are only intended for android compatibility
-    if (!found){
+    if (!found && notFoundCallback){
         notFoundCallback();
     }
 
