@@ -118,6 +118,10 @@ userSchema.statics.createUserRelation = function(user, idContact, status, callba
   });
 };
 
+userSchema.statics.getRelationshipUsers = function(requesterId, requesteeId, callback){
+    this.find({ $or:[ {'_id':requesterId}, {'_id':requesteeId}]}, callback);
+};
+
 userSchema.statics.listContacts = function(id, callback){
     this
         .findById(id)
@@ -162,6 +166,20 @@ userSchema.statics.exists = function(username, callback){
     });
 };
 
+userSchema.methods.updateImage = function(filename, callback){
+    this.thumbnail = filename;
+    this.save(function (error, savedUser, numModified) {
+        if (error){
+            callback(error, null);
+        } else {
+            User.populate(savedUser, {
+                path: 'pending accepted requested blocked',
+                select: 'name username firstSurname lastSurname email thumbnail'
+            }, callback);
+        }
+    });
+};
+
 userSchema.methods.changeRelationStatus = function(oldStatus, newStatus, userId, callback){
     console.log('Changing relationship Status!');
 
@@ -190,16 +208,66 @@ userSchema.methods.changeRelationStatus = function(oldStatus, newStatus, userId,
 
 };
 
+userSchema.statics.addRelationship = function(userId, relationshipType, requestee, callback){
+    var json = {};
+    json[relationshipType] = requestee;
+
+    this.findByIdAndUpdate({_id: userId},
+        {$push: json},
+        {safe: true, upsert: true}, callback)
+};
+
+userSchema.statics.removeRelationship = function(userId, relationshipType, requestee, callback){
+    var json = {};
+    json[relationshipType] = requestee;
+
+    this.findByIdAndUpdate({_id: userId},
+        {$pop: json},
+        {safe: true, upsert: true}, callback)
+};
+
+userSchema.statics.updateRelationship = function(userId, currentRelationshipStatus, futureRelationshipStatus, requestee, callback){
+    var currentRelationshipJson = {};
+    currentRelationshipJson[currentRelationshipStatus] = requestee;
+    var futureRelationshipJson = {};
+    futureRelationshipJson[futureRelationshipStatus] = requestee;
+
+    this.findByIdAndUpdate({_id: userId},
+        {$pop: currentRelationshipJson, $push: futureRelationshipJson}, {safe: true, upsert: true}, callback);
+
+};
+
+userSchema.statics.checkIfRelationshipExists = function(requester, requestee, callback){
+    this.findById(requester).populate({path: 'pending accepted requested blocked', select: 'id'}).exec(function(error, user){
+        if (error){
+            callback(error);
+        } else {
+            //if (requester.accepted)
+            var contacts = user.accepted.concat(user.requested).concat(user.pending).concat(user.blocked);
+            var contacts = _.pluck(contacts, 'id');
+            if (callback){
+                callback(null, _.contains(contacts, requestee));
+            }
+        }
+
+    });
+};
+
 var User = Mongoose.model('User', userSchema);
 exports.User = User;
 
-//function test() {
-//    Mongoose.connect('mongodb://localhost/rest_test');
-//
-//    User.swapRelation('56f3ee29e1c569f54e5d3e45', '56f3ee20e1c569f54e5d3e44', 'accepted', 'pending', function (err, us) {
-//        console.log(err);
-//        console.log(us);
-//    });
-//}
-//
+function test() {
+    Mongoose.connect('mongodb://localhost/rest_test');
+
+    User.removeRelationship('576aa729154318d5030377bc', 'accepted', '579560fa3e513a710a6bdc3a', function (error, exists) {
+        console.log(error);
+        console.log(exists);
+    });
+
+    User.removeRelationship('579560fa3e513a710a6bdc3a', 'accepted', '576aa729154318d5030377bc', function (error, exists) {
+        console.log(error);
+        console.log(exists);
+    });
+}
+
 //test();

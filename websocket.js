@@ -7,22 +7,23 @@ var User =          require('./User').User;
 var CalendarEvent = require('./CalEvent').CalendarEvent;
 var async         = require('async');
 var fs            = require('fs');
+var userManager = require('./managers/userManager');
 
 var websockets;
-
-var ws = function (socket) {
+var ws = {};
+ws.sockets = function (socket) {
 
     socket.on('login', function(msg){
-        if (msg && msg.username && msg.password){
-            User.login(msg.username, msg.password, function(data){
-                if (data.status === 'success'){
-                    socket.set('username', data.user.username);
-                    socket.set('id', data.user.id);
-                    socket.set('status', 'ONLINE');
-
+        if (msg && msg.username && msg.password) {
+            userManager.login(msg.username, msg.password, function (data) {
+                socket.username = data.username;
+                socket._id = data.id;
+                socket.status = 'ONLINE';
+                if (!msg.type || msg.type !== "ANDROID") {
                     socket.emit('login', data);
-
                 }
+            }, function (error) {
+                socket.emit('loginError', error);
             });
         }
     });
@@ -38,9 +39,8 @@ var ws = function (socket) {
         });
     });
 
-
     socket.on('user:existing', function (msg){
-        User.exists(msg.username, function(exists){
+        userManager.userExist(msg.username, function(exists){
             socket.emit('user:existing', exists);
         });
     });
@@ -67,10 +67,14 @@ var ws = function (socket) {
                 console.log('./' + msg.username + '.' + encodingType);
             }
         }
-        User.create(msg, function(error, newUser){
-            if (error) throw error;
-            socket.emit('user:create', newUser);
+
+        userManager.createUser(msg, function(user){
+            socket.emit('user:create', user);
+        }, function(error){
+            //TODO FRONTEND NOT IMPLEMENTED YET
+            socket.emit('user:createError', {error: error.errmsg});
         });
+
     });
     function decodeBase64Image(dataString) {
         var matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/),
@@ -107,21 +111,99 @@ var ws = function (socket) {
 
     socket.on('contacts:list', function(msg){
         getSocketProperty(socket, 'id', function (id){
-            console.log('id:' +id);
-            User.listContacts(id, function(error, data){
-                if (!error){
-                    console.log(data);
-                    socket.emit('contacts:update', data);
-                    data.accepted.forEach(function(contact){
-                        console.log('subscribing user: '+id+' to '+contact.id);
-                        socket.join(contact.id);
-                    });
-                    console.log('broadcasting to Room: '+id);
-                    socket.broadcast.to(id).emit('roster:update', {id: id, status: 'ONLINE'});
-                }
+            userManager.listAllContacts(id, function(contacts){
+                socket.emit('contacts:update', contacts);
+                notifyContactsUserConnected(id, contacts.accepted);
+            }, function(error){
+                console.log('Error' +error);
             });
         });
     });
+
+    function notifyContactsUserConnected(userId, contacts){
+        contacts.forEach(function(contact){
+            console.log('------ subscribing user: '+userId+ ' to ' +contact.id);
+            socket.join(contact.id);
+        });
+        console.log('+++++++ broadcasting roster:update to '+userId+' room');
+        socket.broadcast.to(userId).emit('roster:update', {id: userId, status: 'ONLINE'})
+    }
+
+    socket.on('contacts:propose', function(msg) {
+        userManager.requestRelationship(socket._id, msg._id, function () {
+            userManager.listAllContacts(socket._id, function(data){
+                socket.emit('contacts:update', data);
+            });
+            findSocketById(msg._id, function(contactSocket){
+                userManager.listAllContacts(contactSocket._id, function(contactData){
+                    contactSocket.emit('contacts:update', contactData);
+                });
+            }, function(){
+                console.log('socket not found, should check now for token');
+            });
+            userManager.listAllContacts(msg._id, function(data){
+
+            })
+        }, function (error) {
+            console.log('error' + error);
+        });
+    });
+
+    socket.on('contacts:accept', function(msg){
+        userManager.acceptRelationship(socket._id, msg._id, function(){
+            socket.join(msg._id);
+
+            userManager.listAllContacts(socket._id, function(userData){
+                socket.emit('contacts:update', userData);
+            });
+
+            findSocketById(msg._id, function(contactSocket){
+                contactSocket.join(socket._id);
+
+                userManager.listAllContacts(msg._id, function(contactData){
+                    contactSocket.emit('contacts:update', contactData);
+                    sendRosterUpdate(socket, contactSocket);
+                    sendRosterUpdate(contactSocket, socket);
+                });
+            }, function(){
+                console.log('socket not found, now should search for a token and send push!');
+            });
+        }, function(error){
+           console.log("Error accepting user");
+            console.log(error);
+        });
+    });
+
+    socket.on('contacts:reject', function(msg){
+        userManager.rejectRelationship(socket._id, msg._id, function(){
+            console.log('successfully rejected relationship');
+            updateUserList(socket, msg._id);
+        }, function(error){
+            console.log(error);
+        });
+    });
+
+    socket.on('contacts:delete', function(msg){
+        userManager.deleteRelationship(socket._id, msg._id, function(){
+            console.log('successfully deleted relationship');
+            updateUserList(socket, msg._id);
+        }, function(error){
+            console.log(error);
+        })
+    });
+
+    function updateUserList(userSocket, contactId){
+        userManager.listAllContacts(userSocket._id, function(userData){
+            userSocket.emit('contacts:update', userData);
+        });
+        findSocketById(contactId, function(contactSocket){
+            userManager.listAllContacts(contactId, function(contactData){
+                contactSocket.emit('contacts:update', contactData)
+            });
+        }, function(){
+            console.log('socket not found, now should search for a token and send push!');
+        });
+    }
 
     socket.on('contacts:update_list', function (msg){
         console.log('Entra al contacts:update_list');
@@ -174,31 +256,6 @@ var ws = function (socket) {
         });
     });
 
-    socket.on('contacts:propose', function(msg){
-        socket.get('id', function(error, idProposer){
-
-            User.createRelation(idProposer, msg._id, 'pending', function(data){
-                if (data){
-                    socket.emit('contacts:update', data);
-                }
-            });
-
-            User.createRelation(msg._id, idProposer, 'requested', function(contactData){
-                if (contactData){
-                    websockets.clients().forEach(function(socketContact){
-                        socketContact.get('id', function(err, idContact){
-                            if (err)
-                                throw err;
-                            if (idContact === msg._id){
-                                socketContact.emit('contacts:update', contactData);
-                            }
-                        });
-                    });
-                }
-            });
-        });
-    });
-
     socket.on('calendar:createEvent', function(msg){
         console.log('calendar:createEvent');
         console.log('msg');
@@ -208,13 +265,11 @@ var ws = function (socket) {
                 console.log(error);
             }
             else{
-                socket.get('id', function(error, idUser){
-                    if (!error && idUser){
-                        CalendarEvent.getUserEvents(idUser, function(data){
-                            console.log(data);
-                            socket.emit('calendar:getEvents', data);
-                        });
-                    }
+                getSocketProperty(socket, 'id', function(idUser){
+                    CalendarEvent.getUserEvents(idUser, function(data){
+                        console.log(data);
+                        socket.emit('calendar:getEvents', data);
+                    });
                 });
             }
         });
@@ -223,41 +278,32 @@ var ws = function (socket) {
     socket.on('calendar:removeUser', function (msg){
         console.log('calendar:removeUser');
         console.log('id: '+msg.id);
-        socket.get('id', function(error, idUser){
-            if (!error && idUser){
-                CalendarEvent.findById(msg.id, function(error, event){
-                    event.delUser(idUser, function(){
-                        CalendarEvent.getUserEvents(idUser, function(data){
-                            console.log(data);
-                            socket.emit('calendar:getEvents', data);
-                        });
+        getSocketProperty(socket, 'id', function(idUser){
+            CalendarEvent.findById(msg.id, function(error, event){
+                event.delUser(idUser, function(){
+                    CalendarEvent.getUserEvents(idUser, function(data){
+                        console.log(data);
+                        socket.emit('calendar:getEvents', data);
                     });
                 });
-            }
+            });
         });
     });
 
     socket.on('calendar:getEvents', function(msg){
         console.log('calendar:getEvents');
-        socket.get('id', function(error, idUser){
-            if (!error && idUser){
-                CalendarEvent.getUserEvents(idUser, function(data){
-                    socket.emit('calendar:getEvents', data);
-                });
-            }
+        getSocketProperty(socket, 'id', function(idUser){
+            CalendarEvent.getUserEvents(idUser, function(data){
+                socket.emit('calendar:getEvents', data);
+            });
         });
     });
 
     socket.on('disconnect', function () {
-        socket.set('status', 'OFFLINE');
-        socket.get('id', function(error, id){
-            if (!error){
-                notifyDisconnectionToContacts(id, socket);
+        socket.status = 'OFFLINE';
+        getSocketProperty(socket, 'id', function(id){
+            notifyDisconnectionToContacts(id, socket);
                 socket.leave(id);
-            }
-            else{
-                console.log('unknown user disconnected');
-            }
         });
     });
 
@@ -273,29 +319,11 @@ var ws = function (socket) {
 
     //callback is a function whose first parameter is the proposerId
     function getSocketProperty(socket, paramName, callback) {
-        socket.get(paramName, function(err, idProposer){
-            if (!err && idProposer) {
-                if (callback) callback(idProposer);
-            }
-        });
-    }
-
-    function findContactSocketById(currentUserId, contactId, callback) {
-        var clients = (currentUserId === null)
-            ? websockets.clients()
-            : websockets.clients(currentUserId);
-
-        clients.forEach( function(socket) {
-            getSocketProperty(socket, 'id', function (socketId) {
-                if (socketId === contactId){
-                    if (callback) callback(socket);
-                }
-            });
-        });
-    }
-
-    function findSocketById(id, callback){
-        findContactSocketById(null, id, callback);
+        //id variable is used by the system in the newer versions so we alias our own
+        var paramName = (paramName === 'id') ? '_id' : paramName;
+        if (callback) {
+            callback(socket[paramName]);
+        }
     }
 
     function createCall (callerId, calleeId, callback) {
@@ -362,11 +390,7 @@ var ws = function (socket) {
     }
 
     function sendRosterUpdate(sourceSocket, destinationSocket) {
-        getSocketProperty(sourceSocket, 'id', function (id){
-            getSocketProperty(sourceSocket, 'status', function (status){
-                destinationSocket.emit('roster:update', {id: id, status: status})
-            });
-        });
+        destinationSocket.emit('roster:update', {id: sourceSocket._id, status: sourceSocket.status});
     }
 
     function updateSelfStatus(sourceSocket) {
@@ -457,24 +481,33 @@ var ws = function (socket) {
     });
 
     socket.on('call:userDetails', function(msg){
-        socket.get('id', function(err, id){
-            if (!err && id){
-                User.findById(id, 'username name firstSurname lastSurname thumbnail email', function(error, user){
-                    if (!error && user){
-                        websockets.clients('call:'+msg.idCall).forEach(function(contact){
-                            contact.get('id', function(errId, idContact){
-                                if (!errId && idContact){
-                                    if (idContact === msg.idUser){
-                                        contact.emit('call:userDetails', user);
-                                    }
-                                }
-                            });
-                        });
-                    }
-                });
-            }
+        getSocketProperty(socket, 'id', function(id){
+            User.findById(id, 'username name firstSurname lastSurname thumbnail email', function(error, user){
+                if (!error && user){
+                    findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
+                        socket.emit('call:userDetails', user);
+                    });
+                }
+            });
         });
     });
+
+    function findContactInRoom(roomName, contactId, callback){
+        var room = websockets.adapter.rooms[roomName];
+        var found = false;
+
+        for (var socketName in room.sockets){
+            var contactSocket = websockets.connected[socketName];
+            if (contactSocket._id === contactId && callback){
+                callback(contactSocket);
+                found = true;
+            }
+        }
+
+        if (!found){
+            console.log("not found contact in Room");
+        }
+    }
 
 
     socket.on('call:hangup', function (msg){
@@ -485,55 +518,54 @@ var ws = function (socket) {
 
     socket.on('webrtc:offer', function(msg){
         console.log('webrtc:offer');
-        socket.get('id', function(err, id){
-            if (!err && id){
-                websockets.clients('call:'+msg.idCall).forEach(function(contact){
-                    contact.get('id', function(errContact, idContact){
-                        if (!errContact && idContact){
-                            if (idContact === msg.idUser){
-                                contact.emit(id+':offer', msg.offer);
-                            }
-                        }
-                    });
-                });
-            }
+        getSocketProperty(socket, 'id', function(id){
+            findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
+                socket.emit(id+':offer', msg.offer);
+            });
         });
     });
 
     socket.on('webrtc:answer', function(msg){
         console.log('webrtc:answer');
-        socket.get('id', function(err, id){
-            if (!err && id){
-                websockets.clients('call:'+msg.idCall).forEach(function(contact){
-                    contact.get('id', function(errContact, idContact){
-                        if (!errContact && idContact){
-                            if (idContact === msg.idUser){
-                                contact.emit(id+':answer', msg.answer);
-                            }
-                        }
-                    });
-                });
-            }
+        getSocketProperty(socket, 'id', function(id){
+            findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
+                socket.emit(id+':answer', msg.answer);
+            });
         });
     });
 
     socket.on('webrtc:iceCandidate', function(msg){
-        console.log('webrtc:iceCandidate');
-        socket.get('id', function(err, id){
-            if (!err && id){
-                websockets.clients('call:'+msg.idCall).forEach(function(contact){
-                    contact.get('id', function(errContact, idContact){
-                        if (!errContact && idContact){
-                            if (idContact === msg.idUser){
-                                contact.emit(id+':iceCandidate', msg.candidate);
-                            }
-                        }
-                    });
-                });
-            }
+        console.log('webrtc:iceCandidate '+socket._id);
+        getSocketProperty(socket, 'id', function(id){
+            findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
+                socket.emit(id+':iceCandidate', msg.candidate);
+            });
         });
     });
 };
+
+function findContactSocketById(currentUserId, contactId, callback, notFoundCallback) {
+    var clients = websockets.connected;
+    var found = false;
+    for (var socketName in clients){
+        if (clients[socketName]._id === contactId && callback){
+            found = true;
+            callback(clients[socketName]);
+        }
+    }
+    //this method and callbacks are only intended for android compatibility
+    if (!found && notFoundCallback){
+        notFoundCallback();
+    }
+
+}
+
+function findSocketById(id, callback, notFoundCallback){
+    findContactSocketById(null, id, callback, notFoundCallback);
+}
+
+ws.findsocket = findSocketById;
+
 
 module.exports = function(sockets){
     websockets = sockets;

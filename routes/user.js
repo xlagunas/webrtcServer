@@ -2,8 +2,43 @@
 var express = require('express');
 var router = express.Router();
 var passport = require('passport');
+
+
 var user = require('../User').User;
 var pushNotification = require('../push-sender');
+
+var websocket = require('../websocket');
+
+var multer = require('multer');
+var storage = multer.diskStorage({
+   destination: function (req, file, cb) {
+      cb(null, 'app/images')
+   },
+   filename: function (req, file, cb) {
+      cb(null, req.user.id)
+   }
+});
+
+var upload = multer({ storage: storage }).single('thumbnail');
+
+router.post('/image', passport.authenticate('basic', {session: false}), function (req, res) {
+   upload(req, res, function(error){
+      console.log(req.file.destination);
+      console.log(req.file.filename);
+      if (error){
+         res.sendStatus(500);
+      } else {
+         req.user.updateImage(req.file.filename, function(error, user){
+            if (error){
+               res.sendStatus(500);
+            } else {
+               res.send(user);
+            }
+         });
+      }
+   });
+
+});
 
 //login user
 router.post('/login', function(req, res){
@@ -65,6 +100,17 @@ router.post('/push', passport.authenticate('basic', {session: false}), function(
    console.log(req.user.uuid[0].token);
    pushNotification.Send(req.user.uuid[0].token, req.user.username);
    res.sendStatus(200);
+});
+
+
+router.post('/call/:id', passport.authenticate('basic', {session: false}), function(req, res){
+   websocket.findSocket(req.params.id,
+       function(socket){
+
+       },
+       function(){
+
+   })
 });
 
 

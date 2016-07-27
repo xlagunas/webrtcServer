@@ -50,4 +50,5 @@ const server = app.listen(3000, function(){
 var io = require('socket.io').listen(server);
 
 io.set('log level', 1);
-io.on('connection', require('./websocket')(io.sockets));
+var websocket = require('./websocket')(io.sockets);
+io.on('connection', websocket.sockets);
