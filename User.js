@@ -119,11 +119,7 @@ userSchema.statics.createUserRelation = function(user, idContact, status, callba
 };
 
 userSchema.statics.getRelationshipUsers = function(requesterId, requesteeId, callback){
-    this.find({ $or:[ {'_id':requesterId}, {'_id':requesteeId}]},
-            {
-                path:'pending accepted requested blocked',
-                select:'name username firstSurname lastSurname email thumbnail'
-            }, callback);
+    this.find({ $or:[ {'_id':requesterId}, {'_id':requesteeId}]}, callback);
 };
 
 userSchema.statics.listContacts = function(id, callback){
@@ -213,10 +209,32 @@ userSchema.methods.changeRelationStatus = function(oldStatus, newStatus, userId,
 };
 
 userSchema.statics.addRelationship = function(userId, relationshipType, requestee, callback){
-    var json = "{"+this[relationshipType] +":"+requestee+"}";
+    var json = {};
+    json[relationshipType] = requestee;
+
     this.findByIdAndUpdate({_id: userId},
         {$push: json},
         {safe: true, upsert: true}, callback)
+};
+
+userSchema.statics.removeRelationship = function(userId, relationshipType, requestee, callback){
+    var json = {};
+    json[relationshipType] = requestee;
+
+    this.findByIdAndUpdate({_id: userId},
+        {$pop: json},
+        {safe: true, upsert: true}, callback)
+};
+
+userSchema.statics.updateRelationship = function(userId, currentRelationshipStatus, futureRelationshipStatus, requestee, callback){
+    var currentRelationshipJson = {};
+    currentRelationshipJson[currentRelationshipStatus] = requestee;
+    var futureRelationshipJson = {};
+    futureRelationshipJson[futureRelationshipStatus] = requestee;
+
+    this.findByIdAndUpdate({_id: userId},
+        {$pop: currentRelationshipJson, $push: futureRelationshipJson}, {safe: true, upsert: true}, callback);
+
 };
 
 userSchema.statics.checkIfRelationshipExists = function(requester, requestee, callback){
@@ -238,12 +256,18 @@ userSchema.statics.checkIfRelationshipExists = function(requester, requestee, ca
 var User = Mongoose.model('User', userSchema);
 exports.User = User;
 
-//function test() {
-//    Mongoose.connect('mongodb://localhost/rest_test');
-//
-//    User.checkIfRelationshipExists('576aa729154318d5030377bc', '577ce40c1047a01e034a6394', function (error, exists) {
-//        console.log(exists);
-//    });
-//}
-//
+function test() {
+    Mongoose.connect('mongodb://localhost/rest_test');
+
+    User.removeRelationship('576aa729154318d5030377bc', 'accepted', '579560fa3e513a710a6bdc3a', function (error, exists) {
+        console.log(error);
+        console.log(exists);
+    });
+
+    User.removeRelationship('579560fa3e513a710a6bdc3a', 'accepted', '576aa729154318d5030377bc', function (error, exists) {
+        console.log(error);
+        console.log(exists);
+    });
+}
+
 //test();

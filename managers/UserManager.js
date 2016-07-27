@@ -59,6 +59,24 @@ exposed.listAllContacts = function(userId, onSuccess, onError){
   return exposed.listContactsByRelationshipType(userId, null, onSuccess, onError);
 };
 
+exposed.checkIfRelationshipExists = function(requestedId, requesteeId, onSuccess, onError){
+    async.waterfall([function(callback) {
+        User.checkIfRelationshipExists(requestedId, requesteeId, callback);
+    }, function(existsFirstUser, callback){
+        if (existsFirstUser){
+            if (onError) onError({error: "Relationship exists"});
+        } else {
+            User.checkIfRelationshipExists(requesteeId, requestedId, callback);
+        }
+    }], function(error, existsSecondUser){
+        if (error || existsSecondUser) {
+            if (onError) onError({error: "Relationship exists"});
+        } else {
+            if (onSuccess) onSuccess();
+        }
+    });
+};
+
 exposed.listContactsByRelationshipType = function(userId, relationshipType, onSuccess, onError){
     log('Requesting user '+userId+ ' contacts');
     User.listContacts(userId, function(error, data) {
@@ -82,81 +100,95 @@ exposed.listContactsByRelationshipType = function(userId, relationshipType, onSu
     });
 };
 
-exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onError){
-    var onErrorFunction = function(message){
-        if (onError){
-            return onError(message);
-        }
-    };
-    //Check if theres an ongoing relationship
-    async.waterfall([
-        function(callback){
-            User.checkIfRelationshipExists(requesterId, requesteeId, callback)
-        }, function(callback){
-            User.getRelationshipUsers(requesterId, requesteeId, callback)
-        }
-    ], function(error, data){
-        if (error){
-            log('Something went wrong!');
-            onError(error);
-        } else {
-            var users = data[1];
-            for (var i=0; i< users.length;i++){
-                var user = users[i];
-                if (user.id === requesterId){
-                    user.pending.addToSet(requesteeId);
-                } else if (user.id === requesteeId){
-                    user.requested.addToSet(requesterId);
-                }
-            }
-
-            //Create both relationships
-            async.parallel([function(callback){
-                User.addRelationship(requesterId, 'pending', requesteeId, callback)
-            },function(callback){
-                User.addRelationship(requesteeId, 'requested', requesterId, callback)
-            }], function(err, results){
-                if (error){
-                    log('Error adding relationships');
-                } else {
-                    onSuccess();
-                }
+exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onError) {
+    async.waterfall([function(callback){
+        return exposed.checkIfRelationshipExists(requesterId, requesteeId, function(exists){
+            callback(null, exists);
+        }, function(error){
+            callback(error);
+        });
+    }, function(exists, callback){
+        if (exists) callback({error: 'A relationship exists'});
+        else {
+            exposed.createBiDirectionalRelationship(requesterId, 'pending', requesteeId, 'requested', function(){
+                callback(null, "success");
+            }, function(error){
+                callback(error);
             });
         }
+    }], function(error, results){
+        if (error){
+            if (onError) onError(error);
+        } else {
+            if (onSuccess)
+                onSuccess();
+        }
     });
+};
 
-    //User.checkIfRelationshipExists(requesterId, requesteeId, function(error, exists){
-    //    if (error){
-    //        log('Error checking if relationship exists');
-    //        log(error);
-    //        onErrorFunction({error: 'error retrieving users'});
-    //    } else {
-    //        if (exists){
-    //            log('A relationship already exists between '+requesterId+' and '+requesteeId+' users');
-    //            onErrorFunction({error: 'relationship already exists'});
-    //        } else {
-    //            User.getRelationshipUsers(requesterId, requesteeId, function(error, users){
-    //            if (error || users.length !== 2){
-    //                log('Error retrieving users '+requesterId+' and '+requesteeId+' to create relationship');
-    //                onErrorFunction({error: 'error retrieving users'})
-    //            } else {
-    //
-    //
-    //                async.parallel({requesterId: function(callback){
-    //                        User.addRelationship(requesterId, 'pending', requesteeId, callback)
-    //                    }, requesteeId: function(callback){
-    //                        User.addRelationship(requesteeId, 'requested', requesterId, callback)
-    //                    }
-    //                }, function(err, results){
-    //
-    //                });
-    //
-    //
-    //            }
-    //            });
-    //        }
-    //    }
-    //});
+exposed.rejectRelationship = function (requesterId, requesteeId, onSuccess, onError){
+//when someone reject a relationship, his relationship status is requested while the other one's pending
+    async.waterfall([function(callback){
+        User.removeRelationship(requesterId, 'requested', requesteeId, callback);
+    }, function(previousUpdate, callback){
+        User.removeRelationship(requesteeId, 'pending', requesterId, callback);
+    }], function(err, status){
+        if (err){
+            if (onError) onError(err);
+        } else {
+            if (onSuccess) onSuccess();
+        }
+    });
+};
+
+exposed.acceptRelationship = function (requesterId, requesteeId, onSuccess, onError){
+//when someone accepts a relationship, his relationship statuns is requested while the other one's pending
+    async.waterfall([function(callback){
+        User.updateRelationship(requesterId, 'requested', 'accepted', requesteeId, callback);
+    }, function(previousUpdate, callback){
+        User.updateRelationship(requesteeId, 'pending', 'accepted', requesterId, callback);
+    }], function(err, status){
+        if (err){
+            if (onError) onError(err);
+        } else {
+            if (onSuccess) onSuccess();
+        }
+    });
+};
+
+exposed.deleteRelationship = function (requesterId, requesteeId, onSuccess, onError){
+//when someone reject a relationship, his relationship status is requested while the other one's pending
+    async.waterfall([function(callback){
+        User.removeRelationship(requesterId, 'accepted', requesteeId, callback);
+    }, function(previousUpdate, callback){
+        User.removeRelationship(requesteeId, 'accepted', requesterId, callback);
+    }], function(err, status){
+        if (err){
+            if (onError) onError(err);
+        } else {
+            if (onSuccess) onSuccess();
+        }
+    });
+};
+
+
+exposed.createBiDirectionalRelationship = function(requester, requesterStatus, requestee, requesteeStatus, onSuccess, onError){
+    async.waterfall([
+        function(callback){
+            User.getRelationshipUsers(requester, requestee, callback)
+        }, function(result, callback){
+            User.addRelationship(requester, requesterStatus, requestee, callback)
+        }, function(result, callback){
+            User.addRelationship(requestee, requesteeStatus, requester, callback);
+        }
+    ], function(err, result){
+        if (err){
+            log('Error: couldn\'t create relationship');
+            onError({error: 'couldn\'t create relationship'})
+        } else {
+            onSuccess();
+        }
+    });
 };
 
 
@@ -172,13 +204,45 @@ module.exports = exposed;
 var Mongoose = require('mongoose');
 
 function test() {
-    Mongoose.connect('mongodb://localhost/rest_test');
+    var connection = Mongoose.connect('mongodb://localhost/rest_test');
 
-    exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
+    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
+    //    console.log("SUCCESS!!!!");
+    //}, function(err) {
+    //    console.log(err);
+    //});
+
+    //exposed.acceptRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
+    //    console.log("SUCCESS!!!!");
+    //}, function(err) {
+    //    console.log(err);
+    //});
+
+    //exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
+    //    console.log("SUCCESS!!!!");
+    //}, function(err) {
+    //    console.log(err);
+    //});
+
+    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
+    //    console.log("SUCCESS!!!!");
+    //}, function(err) {
+    //    console.log(err);
+    //});
+
+    //exposed.rejectRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
+    //    console.log("SUCCESS!!!!");
+    //}, function(err) {
+    //    console.log(err);
+    //});
+
+    exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
         console.log("SUCCESS!!!!");
     }, function(err) {
         console.log(err);
     });
+
+
 }
 
 test();
