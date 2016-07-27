@@ -129,6 +129,82 @@ ws.sockets = function (socket) {
         socket.broadcast.to(userId).emit('roster:update', {id: userId, status: 'ONLINE'})
     }
 
+    socket.on('contacts:propose', function(msg) {
+        userManager.requestRelationship(socket._id, msg._id, function () {
+            userManager.listAllContacts(socket._id, function(data){
+                socket.emit('contacts:update', data);
+            });
+            findSocketById(msg._id, function(contactSocket){
+                userManager.listAllContacts(contactSocket._id, function(contactData){
+                    contactSocket.emit('contacts:update', contactData);
+                });
+            }, function(){
+                console.log('socket not found, should check now for token');
+            });
+            userManager.listAllContacts(msg._id, function(data){
+
+            })
+        }, function (error) {
+            console.log('error' + error);
+        });
+    });
+
+    socket.on('contacts:accept', function(msg){
+        userManager.acceptRelationship(socket._id, msg._id, function(){
+            socket.join(msg._id);
+
+            userManager.listAllContacts(socket._id, function(userData){
+                socket.emit('contacts:update', userData);
+            });
+
+            findSocketById(msg._id, function(contactSocket){
+                contactSocket.join(socket._id);
+
+                userManager.listAllContacts(msg._id, function(contactData){
+                    contactSocket.emit('contacts:update', contactData);
+                    sendRosterUpdate(socket, contactSocket);
+                    sendRosterUpdate(contactSocket, socket);
+                });
+            }, function(){
+                console.log('socket not found, now should search for a token and send push!');
+            });
+        }, function(error){
+           console.log("Error accepting user");
+            console.log(error);
+        });
+    });
+
+    socket.on('contacts:reject', function(msg){
+        userManager.rejectRelationship(socket._id, msg._id, function(){
+            console.log('successfully rejected relationship');
+            updateUserList(socket, msg._id);
+        }, function(error){
+            console.log(error);
+        });
+    });
+
+    socket.on('contacts:delete', function(msg){
+        userManager.deleteRelationship(socket._id, msg._id, function(){
+            console.log('successfully deleted relationship');
+            updateUserList(socket, msg._id);
+        }, function(error){
+            console.log(error);
+        })
+    });
+
+    function updateUserList(userSocket, contactId){
+        userManager.listAllContacts(userSocket._id, function(userData){
+            userSocket.emit('contacts:update', userData);
+        });
+        findSocketById(contactId, function(contactSocket){
+            userManager.listAllContacts(contactId, function(contactData){
+                contactSocket.emit('contacts:update', contactData)
+            });
+        }, function(){
+            console.log('socket not found, now should search for a token and send push!');
+        });
+    }
+
     socket.on('contacts:update_list', function (msg){
         console.log('Entra al contacts:update_list');
         //If its an accept request, update own status and remote, also add each user to to its contact room on success
@@ -177,28 +253,6 @@ ws.sockets = function (socket) {
         User.findMatchingUsers(msg.username, function(users){
             if (users)
                 socket.emit('contacts:find', users);
-        });
-    });
-
-    socket.on('contacts:propose', function(msg){
-        getSocketProperty(socket, 'id', function(idProposer){
-            User.createRelation(idProposer, msg._id, 'pending', function(data){
-                if (data){
-                    socket.emit('contacts:update', data);
-                }
-            });
-
-            User.createRelation(msg._id, idProposer, 'requested', function(contactData){
-                if (contactData){
-                    websockets.clients().forEach(function(socketContact){
-                        getSocketProperty(socketContact, 'id', function(idContact){
-                            if (idContact === msg._id){
-                                socketContact.emit('contacts:update', contactData);
-                            }
-                        });
-                    });
-                }
-            });
         });
     });
 
@@ -336,11 +390,7 @@ ws.sockets = function (socket) {
     }
 
     function sendRosterUpdate(sourceSocket, destinationSocket) {
-        getSocketProperty(sourceSocket, 'id', function (id){
-            getSocketProperty(sourceSocket, 'status', function (status){
-                destinationSocket.emit('roster:update', {id: id, status: status})
-            });
-        });
+        destinationSocket.emit('roster:update', {id: sourceSocket._id, status: sourceSocket.status});
     }
 
     function updateSelfStatus(sourceSocket) {
