@@ -47,8 +47,8 @@ const server = app.listen(3000, function(){
     console.log('Listening on port 3000');
 });
 
-var io = require('socket.io').listen(server);
+//var io = require('socket.io').listen(server);
+var io = require('./websocket').listen(server);
 
-io.set('log level', 1);
-var websocket = require('./websocket')(io.sockets);
-io.on('connection', websocket.sockets);
+//var websocket = require('./websocket')(io.sockets);
+//io.on('connection', websocket.sockets);

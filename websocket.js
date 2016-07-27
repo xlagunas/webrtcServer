@@ -1,7 +1,7 @@
 /**
  * Created by xlagunas on 1/04/16.
  */
-var io =            require('socket.io');
+var socketio =            require('socket.io');
 var Call =          require('./Call').Call;
 var User =          require('./User').User;
 var CalendarEvent = require('./CalEvent').CalendarEvent;
@@ -9,9 +9,7 @@ var async         = require('async');
 var fs            = require('fs');
 var userManager = require('./managers/userManager');
 
-var websockets;
-var ws = {};
-ws.sockets = function (socket) {
+var socketHandler =  function (socket) {
 
     socket.on('login', function(msg){
         if (msg && msg.username && msg.password) {
@@ -564,10 +562,19 @@ function findSocketById(id, callback, notFoundCallback){
     findContactSocketById(null, id, callback, notFoundCallback);
 }
 
-ws.findsocket = findSocketById;
+//ws.findsocket = findSocketById;
+//
+//
+//module.exports = function(sockets){
+//    websockets = sockets;
+//    return ws;
+//};
 
+module.exports.listen = function(app){
+    io = socketio.listen(app);
+    websockets = io.clients();
 
-module.exports = function(sockets){
-    websockets = sockets;
-    return ws;
+    io.on('connection', socketHandler);
+
+    return io
 };
