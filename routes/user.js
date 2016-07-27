@@ -6,8 +6,9 @@ var passport = require('passport');
 
 var user = require('../User').User;
 var pushNotification = require('../push-sender');
+var userManager = require('../managers/UserManager');
 
-var websocket = require('../websocket');
+var io = require('../websocket');
 
 var multer = require('multer');
 var storage = multer.diskStorage({
@@ -42,14 +43,12 @@ router.post('/image', passport.authenticate('basic', {session: false}), function
 
 //login user
 router.post('/login', function(req, res){
-   user.login(req.body.username, req.body.password, function(callback){
+   userManager.login(req.body.username, req.body.password, function(user){
+      console.log(user);
+      res.send(user);
 
-      if (callback.status === "success"){
-         console.log(req.body.username +"logged");
-         res.send(callback.user);
-      } else {
-         res.sendStatus(400);
-      }
+   }, function(error){
+      res.sendStatus(400);
    });
 });
 
