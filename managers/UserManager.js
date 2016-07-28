@@ -4,9 +4,7 @@
 
 var User    = require('../User').User;
 var async   = require('async');
-var notificationManager = require('./NotificationManager');
-
-
+var notificationManager;
 var logEnabled = true;
 
 var exposed = {};
@@ -124,8 +122,8 @@ exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onE
     }, function(exists, callback){
         if (exists) callback({error: 'A relationship exists'});
         else {
-            exposed.createBiDirectionalRelationship(requesterId, 'pending', requesteeId, 'requested', function(){
-                notificationManager.sendRequestNotification(requesteeId, requesterId);
+            exposed.createBiDirectionalRelationship(requesterId, 'pending', requesteeId, 'requested', function(data){
+                notificationManager.sendRequestNotification(requesteeId, requesterId, data);
                 callback(null, "success");
             }, function(error){
                 callback(error);
@@ -201,7 +199,7 @@ exposed.createBiDirectionalRelationship = function(requester, requesterStatus, r
             log('Error: couldn\'t create relationship');
             onError({error: 'couldn\'t create relationship'})
         } else {
-            onSuccess();
+            onSuccess(result);
         }
     });
 };
@@ -214,54 +212,57 @@ var log = function(msg){
     }
 };
 
-module.exports = exposed;
+module.exports = function() {
+    notificationManager = require('./NotificationManager').init(exposed);
+    return exposed;
+};
 
-var Mongoose = require('mongoose');
-
-function test2(){
-    var connection = Mongoose.connect('mongodb://localhost/rest_test');
-}
-
-function test() {
-    var connection = Mongoose.connect('mongodb://localhost/rest_test');
-
-    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
-    //    console.log("SUCCESS!!!!");
-    //}, function(err) {
-    //    console.log(err);
-    //});
-
-    //exposed.acceptRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
-    //    console.log("SUCCESS!!!!");
-    //}, function(err) {
-    //    console.log(err);
-    //});
-
-    //exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
-    //    console.log("SUCCESS!!!!");
-    //}, function(err) {
-    //    console.log(err);
-    //});
-
-    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
-    //    console.log("SUCCESS!!!!");
-    //}, function(err) {
-    //    console.log(err);
-    //});
-
-    //exposed.rejectRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
-    //    console.log("SUCCESS!!!!");
-    //}, function(err) {
-    //    console.log(err);
-    //});
-
-    exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
-        console.log("SUCCESS!!!!");
-    }, function(err) {
-        console.log(err);
-    });
-
-
-}
+//var Mongoose = require('mongoose');
+//
+//function test2(){
+//    var connection = Mongoose.connect('mongodb://localhost/rest_test');
+//}
+//
+//function test() {
+//    var connection = Mongoose.connect('mongodb://localhost/rest_test');
+//
+//    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
+//    //    console.log("SUCCESS!!!!");
+//    //}, function(err) {
+//    //    console.log(err);
+//    //});
+//
+//    //exposed.acceptRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
+//    //    console.log("SUCCESS!!!!");
+//    //}, function(err) {
+//    //    console.log(err);
+//    //});
+//
+//    //exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
+//    //    console.log("SUCCESS!!!!");
+//    //}, function(err) {
+//    //    console.log(err);
+//    //});
+//
+//    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
+//    //    console.log("SUCCESS!!!!");
+//    //}, function(err) {
+//    //    console.log(err);
+//    //});
+//
+//    //exposed.rejectRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
+//    //    console.log("SUCCESS!!!!");
+//    //}, function(err) {
+//    //    console.log(err);
+//    //});
+//
+//    exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
+//        console.log("SUCCESS!!!!");
+//    }, function(err) {
+//        console.log(err);
+//    });
+//
+//
+//}
 
 //test();

@@ -3,8 +3,8 @@
  */
 
 
-var websocket = require('../websocket');
 var userManager;
+var websocket = require('../websocket');
 var pushSender = require('../push-sender');
 var logEnabled = true;
 
@@ -13,7 +13,9 @@ var friendshipRequestedTypeMessage = 1;
 var exposed = {};
 
 
-exposed.sendRequestNotification = function(destinationId, contactData){
+var notificationManager = {};
+
+notificationManager.sendRequestNotification = function(destinationId, contactData){
     console.log('This is sending a notification to the receiver');
 
     userManager.listAllContacts(destinationId, function(contacts){
@@ -36,7 +38,7 @@ function sendNotification(destinationId, messageType, message){
 }
 
 function sendNotification(destinationId, messageType, socketMessage, pushMessage){
-    log("Attempting to notify "+destinationId+ ' message: '+message.toString() );
+    log("Attempting to notify "+destinationId+ ' message: '+socketMessage.toString() );
     websocket.findSocketById(destinationId, function(contactSocket){
         console.log('socket found sending notification');
         contactSocket.emit(messageType, socketMessage);
@@ -64,8 +66,7 @@ var log = function(message){
     }
 };
 
-    module.exports = function(userManager) {
-        this.userManager = userManager;
-        return exposed;
-    };
-
+module.exports.init = function(userManagerDependency){
+    userManager = userManagerDependency;
+    return notificationManager;
+};
