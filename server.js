@@ -4,7 +4,8 @@ var mongoose = require('mongoose');
 var bodyParser = require('body-parser');
 var passport = require('passport');
 var Strategy = require('passport-http').BasicStrategy;
-var user = require('./User.js').User;
+var userManager = require('./managers/UserManager')();
+
 
 //MongoDB
 mongoose.connect('mongodb://localhost/rest_test');
@@ -12,12 +13,10 @@ mongoose.connect('mongodb://localhost/rest_test');
 
 passport.use(new Strategy(
     function(username, password, cb) {
-        user.login(username, password, function(callback){
-            if (callback.status === "error"){
-                return cb(null, false);
-            } else {
-                return cb(null, callback.user);
-            }
+        userManager.login(username, password, function(loggedUser){
+            return cb(null, loggedUser);
+        }, function(){
+            return cb(null, false);
         });
     }));
 
@@ -28,8 +27,8 @@ app.use(bodyParser.urlencoded({ extended: true}));
 app.use(bodyParser.json());
 
 //Routes
-app.use('/user', require('./routes/user'));
-app.use('/friendship', require('./routes/friendship'));
+app.use('/user', require('./routes/userRest')(userManager));
+app.use('/friendship', require('./routes/friendshipRest'));
 app.use('/images', express.static(__dirname + '/app/images'));
 
 app.get('/', function (req, res) {
@@ -47,8 +46,4 @@ const server = app.listen(3000, function(){
     console.log('Listening on port 3000');
 });
 
-//var io = require('socket.io').listen(server);
-var io = require('./websocket').listen(server);
-
-//var websocket = require('./websocket')(io.sockets);
-//io.on('connection', websocket.sockets);
+var io = userManager.startWS(server);

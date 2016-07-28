@@ -4,18 +4,16 @@
 
 
 var userManager;
-var websocket = require('../websocket');
-var pushSender = require('../push-sender');
+var websocket;
+var pushSender = require('./../push-sender');
 var logEnabled = true;
 
 var friendshipRequestedTypeMessage = 1;
 
-var exposed = {};
-
 
 var notificationManager = {};
 
-notificationManager.sendRequestNotification = function(destinationId, contactData){
+notificationManager.sendRequestNotification = function(destinationId, senderId, contactData){
     console.log('This is sending a notification to the receiver');
 
     userManager.listAllContacts(destinationId, function(contacts){
@@ -39,19 +37,18 @@ function sendNotification(destinationId, messageType, message){
 
 function sendNotification(destinationId, messageType, socketMessage, pushMessage){
     log("Attempting to notify "+destinationId+ ' message: '+socketMessage.toString() );
-    websocket.findSocketById(destinationId, function(contactSocket){
+    userManager.websocket().findSocketById(destinationId, function(contactSocket){
         console.log('socket found sending notification');
         contactSocket.emit(messageType, socketMessage);
     }, function() {
         console.log('socket not found, should check now for token');
-        user.getUserTokens(destinationId, function(err, tokens){
-            if (err){
-                log("Error searching for tokens!")
-            }else {
-                log('found token, attempting to send push notification');
-                log(tokens);
-                pushSender.sendMessage(tokens, pushMessage);
-            }
+        userManager.getUserTokens(destinationId, function(tokens){
+            log('found token, attempting to send push notification');
+            log(tokens);
+            pushSender.sendMessage(tokens, pushMessage);
+        }, function(error){
+            log("Error searching for tokens!");
+            log(error);
         });
     }, function (error) {
         log('Error attempting to obtain token');
@@ -66,7 +63,7 @@ var log = function(message){
     }
 };
 
-module.exports.init = function(userManagerDependency){
+module.exports = function(userManagerDependency){
     userManager = userManagerDependency;
     return notificationManager;
 };

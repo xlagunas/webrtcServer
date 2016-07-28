@@ -7,7 +7,7 @@ var User          = require('./User').User;
 var CalendarEvent = require('./CalEvent').CalendarEvent;
 var async         = require('async');
 var fs            = require('fs');
-var userManager = require('./managers/userManager');
+var userManager;
 
 var socketHandler =  function (socket) {
 
@@ -552,8 +552,9 @@ function findSocketById(id, callback, notFoundCallback){
     findContactSocketById(null, id, callback, notFoundCallback);
 }
 
-module.exports.listen = function(app){
+module.exports.listen = function(app, injectedUserManager){
     io = socketio.listen(app);
+    userManager = injectedUserManager;
     websockets = io.clients();
 
     io.on('connection', socketHandler);
