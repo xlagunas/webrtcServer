@@ -7,7 +7,7 @@ var User          = require('./User').User;
 var CalendarEvent = require('./CalEvent').CalendarEvent;
 var async         = require('async');
 var fs            = require('fs');
-var userManager = require('./managers/userManager')();
+var userManager = require('./managers/userManager');
 
 var socketHandler =  function (socket) {
 

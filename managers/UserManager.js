@@ -4,9 +4,9 @@
 
 var User    = require('../User').User;
 var async   = require('async');
-var notificationManager;
 var logEnabled = true;
-
+var io = require('../websocket');
+var pushSender = require('../push-sender');
 var exposed = {};
 
 exposed.login = function(username, password, onSuccess, onError){
@@ -55,13 +55,13 @@ exposed.createUser = function(newUser, onSuccess, onError){
 };
 
 exposed.getUserTokens = function(userId, onSuccess, onError){
-    user.findById(userId).populate('token').exec(function(err, data){
+    log('Getting user '+userId+' token');
+    User.getToken(userId, function(err, data){
         if (err){
-            if (onError){
-                onError(err);
-            } else {
-                console.log(data);
-                onSuccess(data);
+            if (onError) onError(err);
+        } else {
+            if (data.uuid !== null) {
+                if (onSuccess) onSuccess(data.uuid);
             }
         }
     });
@@ -122,8 +122,8 @@ exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onE
     }, function(exists, callback){
         if (exists) callback({error: 'A relationship exists'});
         else {
-            exposed.createBiDirectionalRelationship(requesterId, 'pending', requesteeId, 'requested', function(data){
-                notificationManager.sendRequestNotification(requesteeId, requesterId, data);
+            exposed.createBiDirectionalRelationship(requesterId, 'pending', requesteeId, 'requested', function(contactData){
+                exposed.sendRequestNotification(requesteeId, requesterId, contactData);
                 callback(null, "success");
             }, function(error){
                 callback(error);
@@ -206,22 +206,57 @@ exposed.createBiDirectionalRelationship = function(requester, requesterStatus, r
 
 
 
+exposed.sendNotification = function(destinationId, messageType, message){
+    sendNotification(destinationId, messageType, message, message);
+};
+
+exposed.sendNotification = function (destinationId, messageType, socketMessage, pushMessage){
+    log("Attempting to notify "+destinationId+ ' message: '+socketMessage.toString() );
+    io.findSocketById(destinationId, function(contactSocket){
+        console.log('socket found sending notification');
+        contactSocket.emit(messageType, socketMessage);
+    }, function() {
+        console.log('socket not found, should check now for token');
+        exposed.getUserTokens(destinationId, function(tokens){
+            log('found token, attempting to send push notification');
+            log(tokens);
+            pushSender.sendMessage(tokens, pushMessage);
+        }, function(error){
+            log("Error searching for tokens!")
+
+        });
+    }, function (error) {
+        log('Error attempting to obtain token');
+        log(error);
+
+    });
+};
+
+exposed.sendRequestNotification = function(destinationId, contactData){
+    console.log('This is sending a notification to the receiver');
+
+    exposed.listAllContacts(destinationId, function(contacts){
+
+        var pushMessage = {
+            username: contactData.username,
+            name: contactData.name + " " + contactData.firstSurname + " " + contactData.lastSurname,
+            thumbnail: contactData.thumbnail,
+            type: 1
+        };
+
+        exposed.sendNotification(destinationId, 'contacts:update', contacts, pushMessage);
+    });
+
+};
+
 var log = function(msg){
     if (logEnabled){
         console.log(msg);
     }
 };
 
-module.exports = function() {
-    notificationManager = require('./NotificationManager').init(exposed);
-    return exposed;
-};
+module.exports = exposed;
 
-//var Mongoose = require('mongoose');
-//
-//function test2(){
-//    var connection = Mongoose.connect('mongodb://localhost/rest_test');
-//}
 //
 //function test() {
 //    var connection = Mongoose.connect('mongodb://localhost/rest_test');
