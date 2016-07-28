@@ -4,44 +4,68 @@
 
 
 var websocket = require('../websocket');
-var userManager = require('./UserManager');
+var userManager;
 var pushSender = require('../push-sender');
-
 var logEnabled = true;
 
-module.exports.sendRequestNotification = function(destinationId, data){
+var friendshipRequestedTypeMessage = 1;
+
+var exposed = {};
+
+
+exposed.sendRequestNotification = function(destinationId, contactData){
     console.log('This is sending a notification to the receiver');
-    sendNotification(destinationId, 'contacts:update', data);
+
+    userManager.listAllContacts(destinationId, function(contacts){
+
+        var pushMessage = {
+            username: contactData.username,
+                name: contactData.name + " " + contactData.firstSurname + " " + contactData.lastSurname,
+            thumbnail: contactData.thumbnail,
+            type: friendshipRequestedTypeMessage
+        };
+
+        sendNotification(destinationId, 'contacts:update', contacts, pushMessage);
+    });
 
 };
-var sendNotification = function(destinationId, messageType, message){
+
+
+function sendNotification(destinationId, messageType, message){
   sendNotification(destinationId, messageType, message, message);
-};
+}
 
-var sendNotification = function(destinationId, messageType, socketMessage, pushMessage){
+function sendNotification(destinationId, messageType, socketMessage, pushMessage){
     log("Attempting to notify "+destinationId+ ' message: '+message.toString() );
     websocket.findSocketById(destinationId, function(contactSocket){
-        userManager.listAllContacts(destinationId, function(contactData){
-            contactSocket.emit(messageType, contactData);
-            //contactSocket.emit('contacts:update', contactData);
-        });
+        console.log('socket found sending notification');
+        contactSocket.emit(messageType, socketMessage);
     }, function() {
         console.log('socket not found, should check now for token');
-        userManager.getUserTokens(destinationId, function(tokens){
-            log('found token, attempting to send push notification');
-            log(data);
-            pushSender.sendMessage(tokens, pushMessage);
+        user.getUserTokens(destinationId, function(err, tokens){
+            if (err){
+                log("Error searching for tokens!")
+            }else {
+                log('found token, attempting to send push notification');
+                log(tokens);
+                pushSender.sendMessage(tokens, pushMessage);
+            }
         });
     }, function (error) {
         log('Error attempting to obtain token');
         log(error);
 
     });
-};
+}
 
 var log = function(message){
     if (logEnabled){
         console.log(message);
     }
 };
+
+    module.exports = function(userManager) {
+        this.userManager = userManager;
+        return exposed;
+    };
 
