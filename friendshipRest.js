@@ -1,9 +1,10 @@
 var express = require('express');
 var router = express.Router();
 var passport = require('passport');
-var user = require('../User').User;
+var user;
 var _ = require('underscore');
-var pushNotification = require('../push-sender');
+
+//var pushNotification = require('push-sender');
 
 //TODO check where to refactor this
 var friendshipRequestedTypeMessage = 1;
@@ -106,4 +107,7 @@ var callbackHandler = function (res) {
     };
 };
 
-module.exports = router;
+module.exports = function(injectedUser){
+    User = injectedUser.User;
+    return router;
+}

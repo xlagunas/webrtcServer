@@ -2,11 +2,14 @@
  * Created by xlagunas on 26/7/16.
  */
 
-var User    = require('../User').User;
 var async   = require('async');
 var logEnabled = true;
-var io = require('../websocket');
-var pushSender = require('../push-sender');
+//var pushSender = require('push-sender');
+var websocket = {};
+var notificationManager;
+var _ = require('underscore');
+var User = require('./User').User;
+
 var exposed = {};
 
 exposed.login = function(username, password, onSuccess, onError){
@@ -61,7 +64,9 @@ exposed.getUserTokens = function(userId, onSuccess, onError){
             if (onError) onError(err);
         } else {
             if (data.uuid !== null) {
-                if (onSuccess) onSuccess(data.uuid);
+                if (onSuccess) onSuccess(_.uniq(data.uuid));
+            } else {
+                if (onError) onError({Error: "No tokens for this user"});
             }
         }
     });
@@ -123,7 +128,7 @@ exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onE
         if (exists) callback({error: 'A relationship exists'});
         else {
             exposed.createBiDirectionalRelationship(requesterId, 'pending', requesteeId, 'requested', function(contactData){
-                exposed.sendRequestNotification(requesteeId, requesterId, contactData);
+                notificationManager.sendRequestNotification(requesteeId, requesterId, contactData);
                 callback(null, "success");
             }, function(error){
                 callback(error);
@@ -190,9 +195,9 @@ exposed.createBiDirectionalRelationship = function(requester, requesterStatus, r
         function(callback){
             User.getRelationshipUsers(requester, requestee, callback)
         }, function(result, callback){
-            User.addRelationship(requester, requesterStatus, requestee, callback)
-        }, function(result, callback){
             User.addRelationship(requestee, requesteeStatus, requester, callback);
+        }, function(result, callback){
+            User.addRelationship(requester, requesterStatus, requestee, callback)
         }
     ], function(err, result){
         if (err){
@@ -204,58 +209,25 @@ exposed.createBiDirectionalRelationship = function(requester, requesterStatus, r
     });
 };
 
-
-
-exposed.sendNotification = function(destinationId, messageType, message){
-    sendNotification(destinationId, messageType, message, message);
-};
-
-exposed.sendNotification = function (destinationId, messageType, socketMessage, pushMessage){
-    log("Attempting to notify "+destinationId+ ' message: '+socketMessage.toString() );
-    io.findSocketById(destinationId, function(contactSocket){
-        console.log('socket found sending notification');
-        contactSocket.emit(messageType, socketMessage);
-    }, function() {
-        console.log('socket not found, should check now for token');
-        exposed.getUserTokens(destinationId, function(tokens){
-            log('found token, attempting to send push notification');
-            log(tokens);
-            pushSender.sendMessage(tokens, pushMessage);
-        }, function(error){
-            log("Error searching for tokens!")
-
-        });
-    }, function (error) {
-        log('Error attempting to obtain token');
-        log(error);
-
-    });
-};
-
-exposed.sendRequestNotification = function(destinationId, contactData){
-    console.log('This is sending a notification to the receiver');
-
-    exposed.listAllContacts(destinationId, function(contacts){
-
-        var pushMessage = {
-            username: contactData.username,
-            name: contactData.name + " " + contactData.firstSurname + " " + contactData.lastSurname,
-            thumbnail: contactData.thumbnail,
-            type: 1
-        };
-
-        exposed.sendNotification(destinationId, 'contacts:update', contacts, pushMessage);
-    });
-
-};
-
 var log = function(msg){
     if (logEnabled){
         console.log(msg);
     }
 };
 
-module.exports = exposed;
+exposed.websocket = function(){
+    return websocket;
+};
+
+exposed.startWS = function(server){
+    websocket = require('./websocket');
+    return websocket.listen(server, exposed);
+};
+
+module.exports = function() {
+    notificationManager = require('./NotificationManager')(exposed);
+    return exposed;
+};
 
 //
 //function test() {
