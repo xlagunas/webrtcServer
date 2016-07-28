@@ -1,17 +1,15 @@
 /**
  * Created by xlagunas on 1/04/16.
  */
-var io =            require('socket.io');
-var Call =          require('./Call').Call;
-var User =          require('./User').User;
+var socketio      = require('socket.io');
+var Call          = require('./Call').Call;
+var User          = require('./User').User;
 var CalendarEvent = require('./CalEvent').CalendarEvent;
 var async         = require('async');
 var fs            = require('fs');
-var userManager = require('./managers/userManager');
+var userManager;
 
-var websockets;
-var ws = {};
-ws.sockets = function (socket) {
+var socketHandler =  function (socket) {
 
     socket.on('login', function(msg){
         if (msg && msg.username && msg.password) {
@@ -134,16 +132,6 @@ ws.sockets = function (socket) {
             userManager.listAllContacts(socket._id, function(data){
                 socket.emit('contacts:update', data);
             });
-            findSocketById(msg._id, function(contactSocket){
-                userManager.listAllContacts(contactSocket._id, function(contactData){
-                    contactSocket.emit('contacts:update', contactData);
-                });
-            }, function(){
-                console.log('socket not found, should check now for token');
-            });
-            userManager.listAllContacts(msg._id, function(data){
-
-            })
         }, function (error) {
             console.log('error' + error);
         });
@@ -564,10 +552,14 @@ function findSocketById(id, callback, notFoundCallback){
     findContactSocketById(null, id, callback, notFoundCallback);
 }
 
-ws.findsocket = findSocketById;
+module.exports.listen = function(app, injectedUserManager){
+    io = socketio.listen(app);
+    userManager = injectedUserManager;
+    websockets = io.clients();
 
+    io.on('connection', socketHandler);
 
-module.exports = function(sockets){
-    websockets = sockets;
-    return ws;
+    return io
 };
+
+module.exports.findSocketById = findSocketById;

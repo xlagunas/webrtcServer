@@ -4,10 +4,8 @@ var router = express.Router();
 var passport = require('passport');
 
 
-var user = require('../User').User;
-var pushNotification = require('../push-sender');
-
-var websocket = require('../websocket');
+var userManager;
+var user;
 
 var multer = require('multer');
 var storage = multer.diskStorage({
@@ -42,14 +40,12 @@ router.post('/image', passport.authenticate('basic', {session: false}), function
 
 //login user
 router.post('/login', function(req, res){
-   user.login(req.body.username, req.body.password, function(callback){
+   userManager.login(req.body.username, req.body.password, function(user){
+      console.log(user);
+      res.send(user);
 
-      if (callback.status === "success"){
-         console.log(req.body.username +"logged");
-         res.send(callback.user);
-      } else {
-         res.sendStatus(400);
-      }
+   }, function(error){
+      res.sendStatus(400);
    });
 });
 
@@ -96,12 +92,6 @@ router.put('/token',passport.authenticate('basic', {session: false}), function(r
    });
 });
 
-router.post('/push', passport.authenticate('basic', {session: false}), function(req, res){
-   console.log(req.user.uuid[0].token);
-   pushNotification.Send(req.user.uuid[0].token, req.user.username);
-   res.sendStatus(200);
-});
-
 
 router.post('/call/:id', passport.authenticate('basic', {session: false}), function(req, res){
    websocket.findSocket(req.params.id,
@@ -113,5 +103,9 @@ router.post('/call/:id', passport.authenticate('basic', {session: false}), funct
    })
 });
 
-
 module.exports = router;
+module.exports = function(injectedUserManager){
+   userManager = injectedUserManager;
+   user = userManager.User;
+   return router;
+};

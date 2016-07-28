@@ -208,6 +208,10 @@ userSchema.methods.changeRelationStatus = function(oldStatus, newStatus, userId,
 
 };
 
+userSchema.statics.getToken = function(userId, callback){
+    this.findById(userId, callback);
+}
+
 userSchema.statics.addRelationship = function(userId, relationshipType, requestee, callback){
     var json = {};
     json[relationshipType] = requestee;

@@ -2,11 +2,13 @@
  * Created by xlagunas on 26/7/16.
  */
 
-var User    = require('../User').User;
 var async   = require('async');
-
-
 var logEnabled = true;
+//var pushSender = require('push-sender');
+var websocket = {};
+var notificationManager;
+var _ = require('underscore');
+var User = require('./../User').User;
 
 var exposed = {};
 
@@ -50,6 +52,21 @@ exposed.createUser = function(newUser, onSuccess, onError){
             log('User '+newUser.username+'successfully created');
             if (onSuccess) {
                 onSuccess(newUser);
+            }
+        }
+    });
+};
+
+exposed.getUserTokens = function(userId, onSuccess, onError){
+    log('Getting user '+userId+' token');
+    User.getToken(userId, function(err, data){
+        if (err){
+            if (onError) onError(err);
+        } else {
+            if (data.uuid !== null) {
+                if (onSuccess) onSuccess(_.uniq(data.uuid));
+            } else {
+                if (onError) onError({Error: "No tokens for this user"});
             }
         }
     });
@@ -110,7 +127,8 @@ exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onE
     }, function(exists, callback){
         if (exists) callback({error: 'A relationship exists'});
         else {
-            exposed.createBiDirectionalRelationship(requesterId, 'pending', requesteeId, 'requested', function(){
+            exposed.createBiDirectionalRelationship(requesterId, 'pending', requesteeId, 'requested', function(contactData){
+                notificationManager.sendRequestNotification(requesteeId, requesterId, contactData);
                 callback(null, "success");
             }, function(error){
                 callback(error);
@@ -177,21 +195,19 @@ exposed.createBiDirectionalRelationship = function(requester, requesterStatus, r
         function(callback){
             User.getRelationshipUsers(requester, requestee, callback)
         }, function(result, callback){
-            User.addRelationship(requester, requesterStatus, requestee, callback)
-        }, function(result, callback){
             User.addRelationship(requestee, requesteeStatus, requester, callback);
+        }, function(result, callback){
+            User.addRelationship(requester, requesterStatus, requestee, callback)
         }
     ], function(err, result){
         if (err){
             log('Error: couldn\'t create relationship');
             onError({error: 'couldn\'t create relationship'})
         } else {
-            onSuccess();
+            onSuccess(result);
         }
     });
 };
-
-
 
 var log = function(msg){
     if (logEnabled){
@@ -199,50 +215,61 @@ var log = function(msg){
     }
 };
 
-module.exports = exposed;
+exposed.websocket = function(){
+    return websocket;
+};
 
-var Mongoose = require('mongoose');
+exposed.startWS = function(server){
+    websocket = require('./../websocket');
+    return websocket.listen(server, exposed);
+};
 
-function test() {
-    var connection = Mongoose.connect('mongodb://localhost/rest_test');
+module.exports = function() {
+    notificationManager = require('./NotificationManager')(exposed);
+    return exposed;
+};
 
-    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
-    //    console.log("SUCCESS!!!!");
-    //}, function(err) {
-    //    console.log(err);
-    //});
-
-    //exposed.acceptRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
-    //    console.log("SUCCESS!!!!");
-    //}, function(err) {
-    //    console.log(err);
-    //});
-
-    //exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
-    //    console.log("SUCCESS!!!!");
-    //}, function(err) {
-    //    console.log(err);
-    //});
-
-    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
-    //    console.log("SUCCESS!!!!");
-    //}, function(err) {
-    //    console.log(err);
-    //});
-
-    //exposed.rejectRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
-    //    console.log("SUCCESS!!!!");
-    //}, function(err) {
-    //    console.log(err);
-    //});
-
-    exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
-        console.log("SUCCESS!!!!");
-    }, function(err) {
-        console.log(err);
-    });
-
-
-}
+//
+//function test() {
+//    var connection = Mongoose.connect('mongodb://localhost/rest_test');
+//
+//    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
+//    //    console.log("SUCCESS!!!!");
+//    //}, function(err) {
+//    //    console.log(err);
+//    //});
+//
+//    //exposed.acceptRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
+//    //    console.log("SUCCESS!!!!");
+//    //}, function(err) {
+//    //    console.log(err);
+//    //});
+//
+//    //exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
+//    //    console.log("SUCCESS!!!!");
+//    //}, function(err) {
+//    //    console.log(err);
+//    //});
+//
+//    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
+//    //    console.log("SUCCESS!!!!");
+//    //}, function(err) {
+//    //    console.log(err);
+//    //});
+//
+//    //exposed.rejectRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
+//    //    console.log("SUCCESS!!!!");
+//    //}, function(err) {
+//    //    console.log(err);
+//    //});
+//
+//    exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
+//        console.log("SUCCESS!!!!");
+//    }, function(err) {
+//        console.log(err);
+//    });
+//
+//
+//}
 
 //test();
