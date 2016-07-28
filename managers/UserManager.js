@@ -8,7 +8,7 @@ var logEnabled = true;
 var websocket = {};
 var notificationManager;
 var _ = require('underscore');
-var User = require('./User').User;
+var User = require('./../User').User;
 
 var exposed = {};
 
@@ -220,7 +220,7 @@ exposed.websocket = function(){
 };
 
 exposed.startWS = function(server){
-    websocket = require('./websocket');
+    websocket = require('./../websocket');
     return websocket.listen(server, exposed);
 };
 

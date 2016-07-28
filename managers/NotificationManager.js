@@ -5,7 +5,7 @@
 
 var userManager;
 var websocket;
-var pushSender = require('./push-sender');
+var pushSender = require('./../push-sender');
 var logEnabled = true;
 
 var friendshipRequestedTypeMessage = 1;
