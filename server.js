@@ -4,7 +4,7 @@ var mongoose = require('mongoose');
 var bodyParser = require('body-parser');
 var passport = require('passport');
 var Strategy = require('passport-http').BasicStrategy;
-var userManager = require('./UserManager')();
+var userManager = require('./managers/UserManager')();
 
 
 //MongoDB
@@ -27,8 +27,8 @@ app.use(bodyParser.urlencoded({ extended: true}));
 app.use(bodyParser.json());
 
 //Routes
-app.use('/user', require('./userRest')(userManager));
-app.use('/friendship', require('./friendshipRest'));
+app.use('/user', require('./routes/userRest')(userManager));
+app.use('/friendship', require('./routes/friendshipRest'));
 app.use('/images', express.static(__dirname + '/app/images'));
 
 app.get('/', function (req, res) {
