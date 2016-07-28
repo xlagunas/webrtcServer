@@ -132,16 +132,6 @@ var socketHandler =  function (socket) {
             userManager.listAllContacts(socket._id, function(data){
                 socket.emit('contacts:update', data);
             });
-            findSocketById(msg._id, function(contactSocket){
-                userManager.listAllContacts(contactSocket._id, function(contactData){
-                    contactSocket.emit('contacts:update', contactData);
-                });
-            }, function(){
-                console.log('socket not found, should check now for token');
-            });
-            userManager.listAllContacts(msg._id, function(data){
-
-            })
         }, function (error) {
             console.log('error' + error);
         });
@@ -562,14 +552,6 @@ function findSocketById(id, callback, notFoundCallback){
     findContactSocketById(null, id, callback, notFoundCallback);
 }
 
-//ws.findsocket = findSocketById;
-//
-//
-//module.exports = function(sockets){
-//    websockets = sockets;
-//    return ws;
-//};
-
 module.exports.listen = function(app){
     io = socketio.listen(app);
     websockets = io.clients();
@@ -578,3 +560,5 @@ module.exports.listen = function(app){
 
     return io
 };
+
+module.exports.findSocketById = findSocketById;

@@ -4,6 +4,7 @@
 
 var User    = require('../User').User;
 var async   = require('async');
+var notificationManager = require('./NotificationManager');
 
 
 var logEnabled = true;
@@ -50,6 +51,19 @@ exposed.createUser = function(newUser, onSuccess, onError){
             log('User '+newUser.username+'successfully created');
             if (onSuccess) {
                 onSuccess(newUser);
+            }
+        }
+    });
+};
+
+exposed.getUserTokens = function(userId, onSuccess, onError){
+    user.findById(userId).populate('token').exec(function(err, data){
+        if (err){
+            if (onError){
+                onError(err);
+            } else {
+                console.log(data);
+                onSuccess(data);
             }
         }
     });
@@ -111,6 +125,7 @@ exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onE
         if (exists) callback({error: 'A relationship exists'});
         else {
             exposed.createBiDirectionalRelationship(requesterId, 'pending', requesteeId, 'requested', function(){
+                notificationManager.sendRequestNotification(requesteeId, requesterId);
                 callback(null, "success");
             }, function(error){
                 callback(error);
@@ -202,6 +217,10 @@ var log = function(msg){
 module.exports = exposed;
 
 var Mongoose = require('mongoose');
+
+function test2(){
+    var connection = Mongoose.connect('mongodb://localhost/rest_test');
+}
 
 function test() {
     var connection = Mongoose.connect('mongodb://localhost/rest_test');
