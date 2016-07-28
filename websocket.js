@@ -1,13 +1,13 @@
 /**
  * Created by xlagunas on 1/04/16.
  */
-var socketio =            require('socket.io');
-var Call =          require('./Call').Call;
-var User =          require('./User').User;
+var socketio      = require('socket.io');
+var Call          = require('./Call').Call;
+var User          = require('./User').User;
 var CalendarEvent = require('./CalEvent').CalendarEvent;
 var async         = require('async');
 var fs            = require('fs');
-var userManager = require('./managers/userManager');
+var userManager = require('./managers/userManager')();
 
 var socketHandler =  function (socket) {
 
