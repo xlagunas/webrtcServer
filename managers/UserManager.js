@@ -146,14 +146,21 @@ exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onE
 exposed.rejectRelationship = function (requesterId, requesteeId, onSuccess, onError){
 //when someone reject a relationship, his relationship status is requested while the other one's pending
     async.waterfall([function(callback){
-        User.removeRelationship(requesterId, 'requested', requesteeId, callback);
-    }, function(previousUpdate, callback){
         User.removeRelationship(requesteeId, 'pending', requesterId, callback);
+    }, function(previousUpdate, callback){
+        User.removeRelationship(requesterId, 'requested', requesteeId, function(error, data){
+            if (error){
+                callback(error, data);
+            } else {
+                notificationManager.sendRejectNotification(requesteeId, requesterId, data);
+                callback(null, data);
+            }
+        });
     }], function(err, status){
         if (err){
             if (onError) onError(err);
         } else {
-            if (onSuccess) onSuccess();
+            if (onSuccess) onSuccess(status);
         }
     });
 };
@@ -161,14 +168,17 @@ exposed.rejectRelationship = function (requesterId, requesteeId, onSuccess, onEr
 exposed.acceptRelationship = function (requesterId, requesteeId, onSuccess, onError){
 //when someone accepts a relationship, his relationship statuns is requested while the other one's pending
     async.waterfall([function(callback){
-        User.updateRelationship(requesterId, 'requested', 'accepted', requesteeId, callback);
-    }, function(previousUpdate, callback){
         User.updateRelationship(requesteeId, 'pending', 'accepted', requesterId, callback);
+    }, function(previousUpdate, callback){
+        User.updateRelationship(requesterId, 'requested', 'accepted', requesteeId, function(error, data){
+            notificationManager.sendAcceptNotification(requesteeId, requesterId, data);
+            callback(null, data);
+        });
     }], function(err, status){
         if (err){
             if (onError) onError(err);
         } else {
-            if (onSuccess) onSuccess();
+            if (onSuccess) onSuccess(status);
         }
     });
 };

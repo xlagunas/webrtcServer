@@ -10,7 +10,6 @@ var _ = require('underscore');
 var friendshipRequestedTypeMessage = 1;
 var callTypeMessage = 2;
 //CHECK IF THERES SOME KIND OF ENUM CONCEPT
-var friendshipAcceptedTypeMessage = 3;
 
 
 router.put("/:id", passport.authenticate('basic', {session: false}), function (req, res) {

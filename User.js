@@ -206,7 +206,7 @@ userSchema.methods.changeRelationStatus = function(oldStatus, newStatus, userId,
 
 userSchema.statics.getToken = function(userId, callback){
     this.findById(userId, callback);
-}
+};
 
 userSchema.statics.addRelationship = function(userId, relationshipType, requestee, callback){
     var json = {};
@@ -228,7 +228,12 @@ userSchema.statics.removeRelationship = function(userId, relationshipType, reque
 
     this.findByIdAndUpdate({_id: userId},
         {$pop: json},
-        {safe: true, upsert: true}, callback)
+        {safe: true, upsert: true, new: true})
+        .populate(
+        {   path: 'pending accepted requested blocked',
+            select: 'name username firstSurname lastSurname email thumbnail'
+        })
+        .exec(callback);
 };
 
 userSchema.statics.updateRelationship = function(userId, currentRelationshipStatus, futureRelationshipStatus, requestee, callback){
@@ -238,7 +243,7 @@ userSchema.statics.updateRelationship = function(userId, currentRelationshipStat
     futureRelationshipJson[futureRelationshipStatus] = requestee;
 
     this.findByIdAndUpdate({_id: userId},
-        {$pop: currentRelationshipJson, $push: futureRelationshipJson}, {safe: true, upsert: true}, callback);
+        {$pop: currentRelationshipJson, $push: futureRelationshipJson}, {safe: true, upsert: true, new: true}, callback);
 
 };
 
