@@ -243,7 +243,17 @@ userSchema.statics.updateRelationship = function(userId, currentRelationshipStat
     futureRelationshipJson[futureRelationshipStatus] = requestee;
 
     this.findByIdAndUpdate({_id: userId},
-        {$pop: currentRelationshipJson, $push: futureRelationshipJson}, {safe: true, upsert: true, new: true}, callback);
+        {
+            $pop: currentRelationshipJson,
+            $push: futureRelationshipJson
+        }, {
+            safe: true, upsert: true, new: true
+        })
+        .populate(
+            {   path: 'pending accepted requested blocked',
+                select: 'name username firstSurname lastSurname email thumbnail'
+            })
+        .exec(callback);
 
 };
 
