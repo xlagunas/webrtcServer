@@ -128,7 +128,7 @@ exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onE
         else {
             exposed.createBiDirectionalRelationship(requesterId, 'pending', requesteeId, 'requested', function(contactData){
                 notificationManager.sendRequestNotification(requesteeId, requesterId, contactData);
-                callback(null, "success");
+                callback(null, contactData);
             }, function(error){
                 callback(error);
             });
@@ -138,7 +138,7 @@ exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onE
             if (onError) onError(error);
         } else {
             if (onSuccess)
-                onSuccess();
+                onSuccess(results);
         }
     });
 };

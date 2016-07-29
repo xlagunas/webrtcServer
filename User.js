@@ -214,7 +214,12 @@ userSchema.statics.addRelationship = function(userId, relationshipType, requeste
 
     this.findByIdAndUpdate({_id: userId},
         {$push: json},
-        {safe: true, upsert: true}, callback)
+        {safe: true, upsert: true, new: true})
+        .populate(
+            {   path: 'pending accepted requested blocked',
+                select: 'name username firstSurname lastSurname email thumbnail'
+            })
+        .exec(callback)
 };
 
 userSchema.statics.removeRelationship = function(userId, relationshipType, requestee, callback){
