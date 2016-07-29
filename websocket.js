@@ -238,9 +238,8 @@ var socketHandler =  function (socket) {
     });
 
     socket.on('contacts:find', function (msg) {
-        User.findMatchingUsers(msg.username, function(users){
-            if (users)
-                socket.emit('contacts:find', users);
+        userManager.findUsersContaining(msg.username, function(matchedUsers){
+            socket.emit('contacts:find', matchedUsers);
         });
     });
 

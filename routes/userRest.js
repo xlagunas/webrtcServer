@@ -2,12 +2,15 @@
 var express = require('express');
 var router = express.Router();
 var passport = require('passport');
+var Strategy = require('passport-http').BasicStrategy;
+
 
 
 var userManager;
 var user;
 
 var multer = require('multer');
+
 var storage = multer.diskStorage({
    destination: function (req, file, cb) {
       cb(null, 'app/images')
@@ -51,14 +54,10 @@ router.post('/login', function(req, res){
 
 //Create new user
 router.put('/', function(req, res){
-   user.create(req.body, function(error, newUser){
-      if (error){
-         res.sendStatus(500);
-         console.log(error);
-      } else {
-         console.log('User successfully created');
-         res.send(newUser);
-      }
+   userManager.createUser(req.body, function(createdUser){
+      res.send(createdUser);
+   }, function(error){
+      res.sendStatus(500);
    });
 });
 
@@ -74,22 +73,20 @@ router.delete('/:id', function(req, res){
 
 //get user
 router.get('/:username', passport.authenticate('basic', {session: false}), function(req, res){
-   user.findMatchingUsers(req.params.username, function(user){
-      res.send(user);
+   userManager.findUsersContaining(req.params.username, function(obtainedUsers){
+      res.send(obtainedUsers);
+   }, function(err){
+      res.send(500);
    });
 });
 
 router.put('/token',passport.authenticate('basic', {session: false}), function(req, res){
-   req.user.uuid.push(req.body.token);
-   req.user.save(function(error, user){
-      if (error) {
-         res.sendStatus(500);
-         console.log(error);
-      } else {
-         console.log("Token stored successfully");
-         res.send(user);
-      }
+   userManager.addToken(req.user._id, req.body.token, function(updatedUser){
+      res.send(updatedUser);
+   }, function(error){
+      res.sendStatus(500);
    });
+
 });
 
 
@@ -103,9 +100,17 @@ router.post('/call/:id', passport.authenticate('basic', {session: false}), funct
    })
 });
 
-module.exports = router;
 module.exports = function(injectedUserManager){
    userManager = injectedUserManager;
-   user = userManager.User;
+   //user = injectedUserManager.User;
+
+   passport.use(new Strategy(
+       function(username, password, cb) {
+          userManager.login(username, password, function(loggedUser){
+             return cb(null, loggedUser);
+          }, function(){
+             return cb(null, false);
+          });
+       }));
    return router;
 };

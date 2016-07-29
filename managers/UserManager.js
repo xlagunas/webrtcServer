@@ -4,7 +4,6 @@
 
 var async   = require('async');
 var logEnabled = true;
-//var pushSender = require('push-sender');
 var websocket = {};
 var notificationManager;
 var _ = require('underscore');
@@ -205,6 +204,38 @@ exposed.createBiDirectionalRelationship = function(requester, requesterStatus, r
             onError({error: 'couldn\'t create relationship'})
         } else {
             onSuccess(result);
+        }
+    });
+};
+
+exposed.findUsersContaining = function(queryText, onSuccess, onError){
+    User.findMatchingUsers(queryText, function(error, users){
+        if (error) {
+            if (onError) onError(error);
+        } else {
+            onSuccess(users);
+        }
+    });
+};
+
+exposed.createUser = function(userData, onSuccess, onError){
+    User.create(userData, function(err, user){
+        if (err){
+            if(onError) onError(err);
+        } else {
+            onSuccess(user);
+        }
+    });
+};
+
+exposed.addToken = function(userId, tokenUUID, onSuccess, onError){
+    User.addToken(userId, tokenUUID, function(error, success){
+        if (error){
+            if (onError) onError(error);
+        } else {
+            if (onSuccess){
+                onSuccess(success);
+            }
         }
     });
 };

@@ -67,11 +67,7 @@ userSchema.statics.findMatchingUsers = function(matchingUsername, callback){
     this
         .find({username:  new RegExp(matchingUsername, "i")})
         .select("-pending -password -accepted -requested -blocked")
-        .exec(function(error, users){
-            if (!error){
-                callback(users);
-            }
-        });
+        .exec(callback);
 };
 
 userSchema.statics.swapRelation = function (idUser, idContact, currentStatus, futureStatus, callback){
@@ -239,6 +235,10 @@ userSchema.statics.updateRelationship = function(userId, currentRelationshipStat
     this.findByIdAndUpdate({_id: userId},
         {$pop: currentRelationshipJson, $push: futureRelationshipJson}, {safe: true, upsert: true}, callback);
 
+};
+
+userSchema.statics.addToken = function(userId, token, callback){
+    this.findByIdAndUpdate({_id: userId}, {$addToSet: {uuid: token}},{safe: true, upsert: false, new: true}, callback);
 };
 
 userSchema.statics.checkIfRelationshipExists = function(requester, requestee, callback){
