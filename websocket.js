@@ -28,12 +28,9 @@ var socketHandler =  function (socket) {
 
     socket.on('roster:ack', function (msg) {
         console.log('roster:ack');
-        getSocketProperty(socket, 'id', function (idProposer) {
-            getSocketProperty(socket, 'status', function (status) {
-                findContactSocketById(idProposer, msg.id, function (socketContact) {
-                    socketContact.emit('roster:ack', {id: idProposer, status: status});
-                });
-            });
+
+        findContactSocketById(socket._id, msg.id, function (socketContact) {
+            socketContact.emit('roster:ack', {id: socket._id, status: socket.status});
         });
     });
 
@@ -138,23 +135,20 @@ var socketHandler =  function (socket) {
     });
 
     socket.on('contacts:accept', function(msg){
-        userManager.acceptRelationship(socket._id, msg._id, function(){
+        userManager.acceptRelationship(socket._id, msg._id, function(populatedData){
+
+            var data = {
+                accepted:   populatedData.accepted,
+                requested:  populatedData.requested,
+                pending:    populatedData.pending,
+                blocked:    populatedData.blocked
+            };
+
             socket.join(msg._id);
+            socket.emit('contacts:update', data);
 
-            userManager.listAllContacts(socket._id, function(userData){
-                socket.emit('contacts:update', userData);
-            });
-
-            findSocketById(msg._id, function(contactSocket){
-                contactSocket.join(socket._id);
-
-                userManager.listAllContacts(msg._id, function(contactData){
-                    contactSocket.emit('contacts:update', contactData);
-                    sendRosterUpdate(socket, contactSocket);
-                    sendRosterUpdate(contactSocket, socket);
-                });
-            }, function(){
-                console.log('socket not found, now should search for a token and send push!');
+            findSocketById(msg._id, function(contactSocket) {
+                socket.emit('roster:update', {id: contactSocket._id, status: contactSocket.status});
             });
         }, function(error){
            console.log("Error accepting user");
@@ -163,9 +157,17 @@ var socketHandler =  function (socket) {
     });
 
     socket.on('contacts:reject', function(msg){
-        userManager.rejectRelationship(socket._id, msg._id, function(){
+        userManager.rejectRelationship(socket._id, msg._id, function(populatedData){
             console.log('successfully rejected relationship');
-            updateUserList(socket, msg._id);
+            var data = {
+                accepted:   populatedData.accepted,
+                requested:  populatedData.requested,
+                pending:    populatedData.pending,
+                blocked:    populatedData.blocked
+            };
+
+            console.log(data);
+            socket.emit('contacts:update', data);
         }, function(error){
             console.log(error);
         });
@@ -238,9 +240,8 @@ var socketHandler =  function (socket) {
     });
 
     socket.on('contacts:find', function (msg) {
-        User.findMatchingUsers(msg.username, function(users){
-            if (users)
-                socket.emit('contacts:find', users);
+        userManager.findUsersContaining(msg.username, function(matchedUsers){
+            socket.emit('contacts:find', matchedUsers);
         });
     });
 

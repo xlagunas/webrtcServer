@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var passport = require('passport');
-var user;
+var userManager;
 var _ = require('underscore');
 
 //var pushNotification = require('push-sender');
@@ -10,30 +10,18 @@ var _ = require('underscore');
 var friendshipRequestedTypeMessage = 1;
 var callTypeMessage = 2;
 //CHECK IF THERES SOME KIND OF ENUM CONCEPT
-var friendshipAcceptedTypeMessage = 3;
 
 
 router.put("/:id", passport.authenticate('basic', {session: false}), function (req, res) {
     console.log(req.user._id + ':' + req.params.id);
-    user.createRelation(req.user, req.params.id, 'requested', function (error, contactData) {
-        user.createRelation(req.params.id, req.user._id, 'pending', function (error, remoteContactData) {
 
-            if (!error && remoteContactData !== null && remoteContactData.uuid !== null) {
-                var tokens = remoteContactData.uuid;
-                console.log("Extracted tokens: " + JSON.stringify(tokens));
-
-                pushNotification.sendMessage(tokens,
-                    {
-                        username: req.user.username,
-                        name: req.user.name + " " + req.user.firstSurname + " " + req.user.lastSurname,
-                        thumbnail: req.user.thumbnail,
-                        type: friendshipRequestedTypeMessage
-                    });
-            }
-
-            res.send(contactData);
-        });
+    userManager.requestRelationship(req.user._id, req.params.id, function(data){
+        console.log(data);
+        res.send(data);
+    }, function(error){
+        res.sendStatus(404);
     });
+
 });
 
 //update one relationship status
@@ -107,7 +95,7 @@ var callbackHandler = function (res) {
     };
 };
 
-module.exports = function(injectedUser){
-    User = injectedUser.User;
+module.exports = function(injectedUserManager){
+    userManager = injectedUserManager;
     return router;
-}
+};

@@ -67,11 +67,7 @@ userSchema.statics.findMatchingUsers = function(matchingUsername, callback){
     this
         .find({username:  new RegExp(matchingUsername, "i")})
         .select("-pending -password -accepted -requested -blocked")
-        .exec(function(error, users){
-            if (!error){
-                callback(users);
-            }
-        });
+        .exec(callback);
 };
 
 userSchema.statics.swapRelation = function (idUser, idContact, currentStatus, futureStatus, callback){
@@ -210,7 +206,7 @@ userSchema.methods.changeRelationStatus = function(oldStatus, newStatus, userId,
 
 userSchema.statics.getToken = function(userId, callback){
     this.findById(userId, callback);
-}
+};
 
 userSchema.statics.addRelationship = function(userId, relationshipType, requestee, callback){
     var json = {};
@@ -218,7 +214,12 @@ userSchema.statics.addRelationship = function(userId, relationshipType, requeste
 
     this.findByIdAndUpdate({_id: userId},
         {$push: json},
-        {safe: true, upsert: true}, callback)
+        {safe: true, upsert: true, new: true})
+        .populate(
+            {   path: 'pending accepted requested blocked',
+                select: 'name username firstSurname lastSurname email thumbnail'
+            })
+        .exec(callback)
 };
 
 userSchema.statics.removeRelationship = function(userId, relationshipType, requestee, callback){
@@ -227,7 +228,12 @@ userSchema.statics.removeRelationship = function(userId, relationshipType, reque
 
     this.findByIdAndUpdate({_id: userId},
         {$pop: json},
-        {safe: true, upsert: true}, callback)
+        {safe: true, upsert: true, new: true})
+        .populate(
+        {   path: 'pending accepted requested blocked',
+            select: 'name username firstSurname lastSurname email thumbnail'
+        })
+        .exec(callback);
 };
 
 userSchema.statics.updateRelationship = function(userId, currentRelationshipStatus, futureRelationshipStatus, requestee, callback){
@@ -237,8 +243,22 @@ userSchema.statics.updateRelationship = function(userId, currentRelationshipStat
     futureRelationshipJson[futureRelationshipStatus] = requestee;
 
     this.findByIdAndUpdate({_id: userId},
-        {$pop: currentRelationshipJson, $push: futureRelationshipJson}, {safe: true, upsert: true}, callback);
+        {
+            $pop: currentRelationshipJson,
+            $push: futureRelationshipJson
+        }, {
+            safe: true, upsert: true, new: true
+        })
+        .populate(
+            {   path: 'pending accepted requested blocked',
+                select: 'name username firstSurname lastSurname email thumbnail'
+            })
+        .exec(callback);
 
+};
+
+userSchema.statics.addToken = function(userId, token, callback){
+    this.findByIdAndUpdate({_id: userId}, {$addToSet: {uuid: token}},{safe: true, upsert: false, new: true}, callback);
 };
 
 userSchema.statics.checkIfRelationshipExists = function(requester, requestee, callback){

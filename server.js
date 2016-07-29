@@ -27,8 +27,8 @@ app.use(bodyParser.urlencoded({ extended: true}));
 app.use(bodyParser.json());
 
 //Routes
-app.use('/user', require('./routes/userRest')(userManager));
-app.use('/friendship', require('./routes/friendshipRest'));
+app.use('/user', require('./routes/userRest')(userManager, passport));
+app.use('/friendship', require('./routes/friendshipRest')(userManager, passport));
 app.use('/images', express.static(__dirname + '/app/images'));
 
 app.get('/', function (req, res) {

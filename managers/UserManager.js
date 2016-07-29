@@ -4,7 +4,6 @@
 
 var async   = require('async');
 var logEnabled = true;
-//var pushSender = require('push-sender');
 var websocket = {};
 var notificationManager;
 var _ = require('underscore');
@@ -129,7 +128,7 @@ exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onE
         else {
             exposed.createBiDirectionalRelationship(requesterId, 'pending', requesteeId, 'requested', function(contactData){
                 notificationManager.sendRequestNotification(requesteeId, requesterId, contactData);
-                callback(null, "success");
+                callback(null, contactData);
             }, function(error){
                 callback(error);
             });
@@ -139,7 +138,7 @@ exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onE
             if (onError) onError(error);
         } else {
             if (onSuccess)
-                onSuccess();
+                onSuccess(results);
         }
     });
 };
@@ -147,14 +146,21 @@ exposed.requestRelationship = function (requesterId, requesteeId, onSuccess, onE
 exposed.rejectRelationship = function (requesterId, requesteeId, onSuccess, onError){
 //when someone reject a relationship, his relationship status is requested while the other one's pending
     async.waterfall([function(callback){
-        User.removeRelationship(requesterId, 'requested', requesteeId, callback);
-    }, function(previousUpdate, callback){
         User.removeRelationship(requesteeId, 'pending', requesterId, callback);
+    }, function(previousUpdate, callback){
+        User.removeRelationship(requesterId, 'requested', requesteeId, function(error, data){
+            if (error){
+                callback(error, data);
+            } else {
+                notificationManager.sendRejectNotification(requesteeId, requesterId, data);
+                callback(null, data);
+            }
+        });
     }], function(err, status){
         if (err){
             if (onError) onError(err);
         } else {
-            if (onSuccess) onSuccess();
+            if (onSuccess) onSuccess(status);
         }
     });
 };
@@ -162,14 +168,17 @@ exposed.rejectRelationship = function (requesterId, requesteeId, onSuccess, onEr
 exposed.acceptRelationship = function (requesterId, requesteeId, onSuccess, onError){
 //when someone accepts a relationship, his relationship statuns is requested while the other one's pending
     async.waterfall([function(callback){
-        User.updateRelationship(requesterId, 'requested', 'accepted', requesteeId, callback);
-    }, function(previousUpdate, callback){
         User.updateRelationship(requesteeId, 'pending', 'accepted', requesterId, callback);
+    }, function(previousUpdate, callback){
+        User.updateRelationship(requesterId, 'requested', 'accepted', requesteeId, function(error, data){
+            notificationManager.sendAcceptNotification(requesteeId, requesterId, data);
+            callback(null, data);
+        });
     }], function(err, status){
         if (err){
             if (onError) onError(err);
         } else {
-            if (onSuccess) onSuccess();
+            if (onSuccess) onSuccess(status);
         }
     });
 };
@@ -205,6 +214,38 @@ exposed.createBiDirectionalRelationship = function(requester, requesterStatus, r
             onError({error: 'couldn\'t create relationship'})
         } else {
             onSuccess(result);
+        }
+    });
+};
+
+exposed.findUsersContaining = function(queryText, onSuccess, onError){
+    User.findMatchingUsers(queryText, function(error, users){
+        if (error) {
+            if (onError) onError(error);
+        } else {
+            onSuccess(users);
+        }
+    });
+};
+
+exposed.createUser = function(userData, onSuccess, onError){
+    User.create(userData, function(err, user){
+        if (err){
+            if(onError) onError(err);
+        } else {
+            onSuccess(user);
+        }
+    });
+};
+
+exposed.addToken = function(userId, tokenUUID, onSuccess, onError){
+    User.addToken(userId, tokenUUID, function(error, success){
+        if (error){
+            if (onError) onError(error);
+        } else {
+            if (onSuccess){
+                onSuccess(success);
+            }
         }
     });
 };
