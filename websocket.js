@@ -28,12 +28,9 @@ var socketHandler =  function (socket) {
 
     socket.on('roster:ack', function (msg) {
         console.log('roster:ack');
-        getSocketProperty(socket, 'id', function (idProposer) {
-            getSocketProperty(socket, 'status', function (status) {
-                findContactSocketById(idProposer, msg.id, function (socketContact) {
-                    socketContact.emit('roster:ack', {id: idProposer, status: status});
-                });
-            });
+
+        findContactSocketById(socket._id, msg.id, function (socketContact) {
+            socketContact.emit('roster:ack', {id: socket._id, status: socket.status});
         });
     });
 

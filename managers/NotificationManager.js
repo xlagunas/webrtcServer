@@ -2,10 +2,8 @@
  * Created by xlagunas on 27/7/16.
  */
 
-
-var userManager;
-var websocket;
 var pushSender = require('./../push-sender');
+var userManager;
 var logEnabled = true;
 
 var friendshipRequestedTypeMessage = 1;
@@ -73,7 +71,7 @@ notificationManager.sendRejectNotification = function(destinationId, senderId, c
             username: contactData.username,
             name: contactData.name + " " + contactData.firstSurname + " " + contactData.lastSurname,
             thumbnail: contactData.thumbnail,
-            type: friendshipAcceptedTypeMessage
+            type: friendshipRejectedTypeMessage
         };
 
         sendNotification(destinationId, 'contacts:update', userData, pushMessage);
@@ -106,10 +104,6 @@ function sendNotification(destinationId, messageType, socketMessage, pushMessage
         log(error);
 
     });
-}
-
-function sendAcceptNotification(destinationId, data){
-
 }
 
 var log = function(message){
