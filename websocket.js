@@ -105,13 +105,9 @@ var socketHandler =  function (socket) {
     });
 
     socket.on('contacts:list', function(msg){
-        getSocketProperty(socket, 'id', function (id){
-            userManager.listAllContacts(id, function(contacts){
-                socket.emit('contacts:update', contacts);
-                notifyContactsUserConnected(id, contacts.accepted);
-            }, function(error){
-                console.log('Error' +error);
-            });
+        userManager.listAllContacts(socket._id, function(contacts){
+            socket.emit('contacts:update', contacts);
+            notifyContactsUserConnected(socket._id, contacts.accepted);
         });
     });
 

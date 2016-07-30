@@ -9,6 +9,7 @@ var logEnabled = true;
 var friendshipRequestedTypeMessage = 1;
 var friendshipAcceptedTypeMessage = 3;
 var friendshipRejectedTypeMessage = 4;
+var friendshipDeletedTypeMessage = 5;
 
 
 
@@ -85,7 +86,7 @@ notificationManager.sendDeleteNotification = function(destinationId, senderId, c
             username: contactData.username,
             name: contactData.name + " " + contactData.firstSurname + " " + contactData.lastSurname,
             thumbnail: contactData.thumbnail,
-            type: friendshipRejectedTypeMessage
+            type: friendshipDeletedTypeMessage
         };
 
         sendNotification(destinationId, 'contacts:update', userData, pushMessage);

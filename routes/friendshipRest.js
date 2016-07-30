@@ -39,61 +39,44 @@ router.post("/update", passport.authenticate('basic', {session: false}), functio
     var previousState = req.body.previousState;
     var nextState = req.body.nextState;
 
-    if (previousState === 'pending' && nextState == 'accepted'){
-        acceptFriendship(req.user, req.body.id, callbackHandler(res));
-    } else {
-        user.swapUserRelation(req.user, req.body.id, req.body.previousState, req.body.nextState, callbackHandler(res));
+    var reqFunction;
+
+    if (nextState === 'accepted'){
+        var reqFunction= userManager.acceptRelationship;
+
+    } else if (nextState === 'rejected'){
+        var reqFunction = userManager.rejectRelationship;
     }
 
+    reqFunction(req.user.id, req.body.id, function(data){
+        console.log(data);
+        res.send(data);
+    }, function(error){
+        console.log(error);
+        res.sendStatus(404);
+    });
 
+});
+
+router.delete("/:id", passport.authenticate('basic', {session: false}), function (req, res) {
+    console.log(req.user._id + ':' + req.params.id);
+
+    userManager.deleteRelationship(req.user._id, req.params.id, function(data){
+        console.log(data);
+        res.send(data);
+    }, function(error){
+        res.sendStatus(404);
+    });
 
 });
 
 router.get("/", passport.authenticate('basic', {session: false}), function (req, res) {
-    user.listUserContacts(req.user, callbackHandler(res));
-});
-/**
- * This function updates the friendship status in both sides, the requester is updated from requested to accepted
- * and the contact gets updated from pending to accepted. In top of that, there's a push notification issued to
- * the requested user notifying about the relationship change.
- *
- * @param requesterUser The user who issues the action
- * @param requestedContactId the id of the contact target
- * @param callback the callback with the result
- */
-var acceptFriendship = function (requesterUser, requestedContactId, callback) {
-    //update and return the requester of the change
-    user.swapRelation(requesterUser.id, requestedContactId, 'pending', 'accepted', callback);
-    //update and send push notification to the requestee
-    user.swapRelation(requestedContactId, requesterUser._id, 'requested', 'accepted', function (err, user) {
-        if (err) {
-            console.log("Error recovering updating relationship for user id:" + requestedContactId);
-        } else {
-            pushNotification.sendMessage(user.uuid,
-                {
-                    username: requesterUser.username,
-                    name: requesterUser.name + " " + requesterUser.firstSurname + " " + requesterUser.lastSurname,
-                    thumbnail: requesterUser.thumbnail,
-                    type: friendshipAcceptedTypeMessage
-                });
-        }
+    userManager.listAllContacts(req.user.id, function(contacts){
+       res.send(contacts);
+    }, function(error){
+        res.sendStatus(404);
     });
-};
-
-/**
- * Generic callback handler where in case of error a 404 code is bounced up and otherwise we return the obtained value
- * @param err
- * @param user
- */
-var callbackHandler = function (res) {
-    return function(err, user) {
-        if (err) {
-            res.sendStatus(404);
-        } else {
-            res.send(user);
-        }
-    };
-};
+});
 
 module.exports = function(injectedUserManager){
     userManager = injectedUserManager;
