@@ -184,16 +184,22 @@ exposed.acceptRelationship = function (requesterId, requesteeId, onSuccess, onEr
 };
 
 exposed.deleteRelationship = function (requesterId, requesteeId, onSuccess, onError){
-//when someone reject a relationship, his relationship status is requested while the other one's pending
     async.waterfall([function(callback){
-        User.removeRelationship(requesterId, 'accepted', requesteeId, callback);
-    }, function(previousUpdate, callback){
         User.removeRelationship(requesteeId, 'accepted', requesterId, callback);
+    }, function(previousUpdate, callback){
+        User.removeRelationship(requesterId, 'accepted', requesteeId, function(err, data){
+            if (err){
+                callback(err, null);
+            } else {
+                notificationManager.sendDeleteNotification(requesteeId, requesterId, data);
+                callback(null, data);
+            }
+        });
     }], function(err, status){
         if (err){
             if (onError) onError(err);
         } else {
-            if (onSuccess) onSuccess();
+            if (onSuccess) onSuccess(status);
         }
     });
 };

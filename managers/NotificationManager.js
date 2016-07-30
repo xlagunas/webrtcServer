@@ -79,6 +79,19 @@ notificationManager.sendRejectNotification = function(destinationId, senderId, c
 
 };
 
+notificationManager.sendDeleteNotification = function(destinationId, senderId, contactData){
+    userManager.listAllContacts(destinationId, function(userData){
+        var pushMessage = {
+            username: contactData.username,
+            name: contactData.name + " " + contactData.firstSurname + " " + contactData.lastSurname,
+            thumbnail: contactData.thumbnail,
+            type: friendshipRejectedTypeMessage
+        };
+
+        sendNotification(destinationId, 'contacts:update', userData, pushMessage);
+    });
+
+};
 
 function sendNotification(destinationId, messageType, message){
   sendNotification(destinationId, messageType, message, message);

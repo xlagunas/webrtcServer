@@ -174,54 +174,16 @@ var socketHandler =  function (socket) {
     });
 
     socket.on('contacts:delete', function(msg){
-        userManager.deleteRelationship(socket._id, msg._id, function(){
+        userManager.deleteRelationship(socket._id, msg._id, function(populatedData){
+            var data = {
+                accepted:   populatedData.accepted,
+                requested:  populatedData.requested,
+                pending:    populatedData.pending,
+                blocked:    populatedData.blocked
+            };
             console.log('successfully deleted relationship');
-            updateUserList(socket, msg._id);
-        }, function(error){
-            console.log(error);
+            socket.emit('contacts:update', data);
         })
-    });
-
-    function updateUserList(userSocket, contactId){
-        userManager.listAllContacts(userSocket._id, function(userData){
-            userSocket.emit('contacts:update', userData);
-        });
-        findSocketById(contactId, function(contactSocket){
-            userManager.listAllContacts(contactId, function(contactData){
-                contactSocket.emit('contacts:update', contactData)
-            });
-        }, function(){
-            console.log('socket not found, now should search for a token and send push!');
-        });
-    }
-
-    socket.on('contacts:update_list', function (msg){
-        console.log('Entra al contacts:update_list');
-        //If its an accept request, update own status and remote, also add each user to to its contact room on success
-        getSocketProperty(socket, 'id', function (id){
-            if (msg.current === 'requested' && msg.future === 'accepted') {
-                async.parallel([
-                    function(callback){
-                        UpdateAndNotifyRelationship(socket, msg._id, msg.current, msg.future, callback(null, {socket: socket, joinTo: msg._id}));
-                    },
-                    function(callback){
-                        findSocketById(msg._id, function (contactSocket){
-                            UpdateAndNotifyRelationship(contactSocket, id, 'pending', 'accepted', callback(null, {socket: contactSocket, joinTo: id}));
-                        });
-                    }
-                ],  function (error, results) {
-                    if (!error){
-                        results[0].socket.join(results[0].joinTo);
-                        results[1].socket.join(results[1].joinTo);
-                        sendRosterUpdate(results[0].socket, results[1].socket);
-                        sendRosterUpdate(results[1].socket, results[0].socket);
-
-                    }
-                });
-            } else {
-                UpdateAndNotifyRelationship(socket, msg._id, msg.current, msg.future);
-            }
-        });
     });
 
     socket.on('list contacts:accepted', function(msg, callback){
