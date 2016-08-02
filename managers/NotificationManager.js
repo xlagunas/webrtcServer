@@ -10,6 +10,8 @@ var friendshipRequestedTypeMessage = 1;
 var friendshipAcceptedTypeMessage = 3;
 var friendshipRejectedTypeMessage = 4;
 var friendshipDeletedTypeMessage = 5;
+var callReceivedTypeMessage = 2;
+var callAcceptedTypeMessage = 6;
 
 
 
@@ -92,6 +94,28 @@ notificationManager.sendDeleteNotification = function(destinationId, senderId, c
         sendNotification(destinationId, 'contacts:update', userData, pushMessage);
     });
 
+};
+
+notificationManager.sendCallRequest = function(destinationId, senderId, callData){
+    var pushMesage = {
+        username: callData.caller.username,
+        name: callData.caller.name + " " + callData.caller.firstSurname + " " + callData.caller.lastSurname,
+        id: callData.caller.id,
+        type: callReceivedTypeMessage
+    };
+
+    console.log(callData);
+
+    sendNotification(destinationId, 'call:invite', callData, pushMesage);
+};
+
+notificationManager.sendCallAccept = function(destinationId, callData){
+    var pushMesage = {
+        roomId: callData._id,
+        type: callAcceptedTypeMessage
+    };
+
+    sendNotification(destinationId, 'call:accept', callData, pushMesage);
 };
 
 function sendNotification(destinationId, messageType, message){
