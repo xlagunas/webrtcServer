@@ -267,7 +267,11 @@ userSchema.statics.checkIfRelationshipExists = function(requester, requestee, ca
             callback(error);
         } else {
             //if (requester.accepted)
-            var contacts = user.accepted.concat(user.requested).concat(user.pending).concat(user.blocked);
+            var contacts = [];
+            contacts = user.accepted !== null? contacts.concat(user.accepted) : contacts;
+            contacts = user.requested !== null? contacts.concat(user.requested) : contacts;
+            contacts = user.blocked !== null? contacts.concat(user.blocked) : contacts;
+
             var contacts = _.pluck(contacts, 'id');
             if (callback){
                 callback(null, _.contains(contacts, requestee));

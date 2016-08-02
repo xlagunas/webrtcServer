@@ -7,11 +7,13 @@ var userManager;
 var logEnabled = true;
 
 var friendshipRequestedTypeMessage = 1;
-var friendshipAcceptedTypeMessage = 3;
-var friendshipRejectedTypeMessage = 4;
-var friendshipDeletedTypeMessage = 5;
-var callReceivedTypeMessage = 2;
-var callAcceptedTypeMessage = 6;
+var friendshipAcceptedTypeMessage = 2;
+var friendshipRejectedTypeMessage = 3;
+var friendshipDeletedTypeMessage = 4;
+
+
+var callReceivedTypeMessage = 100;
+var callAcceptedTypeMessage = 101;
 
 
 

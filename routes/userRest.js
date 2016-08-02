@@ -91,12 +91,11 @@ router.put('/token',passport.authenticate('basic', {session: false}), function(r
 
 
 router.post('/call/:id', passport.authenticate('basic', {session: false}), function(req, res){
-   websocket.findSocket(req.params.id,
-       function(socket){
-
-       },
-       function(){
-
+   var contactId = req.params.id;
+   userManager.sendCallInvitation(req.user._id, req.params.id, function(data){
+      res.send(200);
+   }, function(error){
+      res.send(500);
    })
 });
 
