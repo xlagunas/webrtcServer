@@ -99,6 +99,22 @@ router.post('/call/:id', passport.authenticate('basic', {session: false}), funct
    })
 });
 
+router.post('/call/:id/accept', passport.authenticate('basic', {session: false}), function(req, res){
+   userManager.acceptCall(req.user._id, req.params.id, function(data){
+      res.send(200);
+   }, function(error){
+      res.send(500);
+   })
+});
+
+router.post('/call/:id/reject', passport.authenticate('basic', {session: false}), function(req, res){
+   //userManager.acceptCall(req.user._id, req.params.id, function(data){
+   //   res.send(200);
+   //}, function(error){
+   //   res.send(500);
+   //})
+});
+
 module.exports = function(injectedUserManager){
    userManager = injectedUserManager;
    //user = injectedUserManager.User;

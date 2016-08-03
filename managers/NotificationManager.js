@@ -100,9 +100,8 @@ notificationManager.sendDeleteNotification = function(destinationId, senderId, c
 
 notificationManager.sendCallRequest = function(destinationId, senderId, callData){
     var pushMesage = {
-        username: callData.caller.username,
-        name: callData.caller.name + " " + callData.caller.firstSurname + " " + callData.caller.lastSurname,
-        id: callData.caller.id,
+        callerId: callData.caller.id,
+        roomId: callData.id,
         type: callReceivedTypeMessage
     };
 
@@ -113,7 +112,8 @@ notificationManager.sendCallRequest = function(destinationId, senderId, callData
 
 notificationManager.sendCallAccept = function(destinationId, callData){
     var pushMesage = {
-        roomId: callData._id,
+        callerId: callData.caller.id,
+        roomId: callData.id,
         type: callAcceptedTypeMessage
     };
 
