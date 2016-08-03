@@ -182,21 +182,6 @@ var socketHandler =  function (socket) {
         })
     });
 
-    socket.on('list contacts:accepted', function(msg, callback){
-        if (msg.length >0) {
-            User
-                .find({_id: {$in: msg}})
-                .select('-pending -password -accepted -requested -blocked')
-                .exec(function(error, data){
-                    if (error) throw error;
-                    callback(data);
-                });
-        }
-        else {
-            callback([]);
-        }
-    });
-
     socket.on('contacts:find', function (msg) {
         userManager.findUsersContaining(msg.username, function(matchedUsers){
             socket.emit('contacts:find', matchedUsers);
@@ -246,23 +231,19 @@ var socketHandler =  function (socket) {
         });
     });
 
+    socket.on('logout', function(){
+        disconnectOrLogout(socket);
+    });
+
     socket.on('disconnect', function () {
+        disconnectOrLogout(socket);
+    });
+
+    function disconnectOrLogout(socket){
         socket.status = 'OFFLINE';
-        getSocketProperty(socket, 'id', function(id){
-            notifyDisconnectionToContacts(id, socket);
-                socket.leave(id);
-        });
-    });
-
-    socket.on('shutdown', function(data){
-        if (data._id in users){
-            var user = users[data._id];
-            user.user.currentStatus = 'OFFLINE';
-            notifyContacts(user);
-            delete users[data._id];
-        }
-    });
-
+        var id = socket._id;
+        notifyDisconnectionToContacts(id, socket);
+    }
 
     //callback is a function whose first parameter is the proposerId
     function getSocketProperty(socket, paramName, callback) {
@@ -353,42 +334,21 @@ var socketHandler =  function (socket) {
                 });
             })
         });
+
+        fullSocket.leave(socketId);
     }
 
     socket.on('call:invite', function (msg){
-        getSocketProperty(socket, 'id', function (idProposer) {
-            findSocketById(msg.id, function (contactSocket){
-                if (msg.call.type === 'CREATE'){
-                    console.log('create nou');
-                    createCall(idProposer, msg.id, function (call){
-                        populateCall(call, function (populatedCall){
-                            contactSocket.emit('call:invite', populatedCall);
-                        });
-                    });
-                }
-
-                else if (msg.call.type === 'JOIN'){
-                    console.log('join nou');
-                    findCallById(msg.call.id, function (populatedCall){
-                        contactSocket.emit('call:invite', populatedCall);
-                    });
-                }
-
-            });
-        });
+        userManager.sendCallInvitation(socket._id, msg.id);
+    });
+    socket.on('call:addUserToCall', function (msg){
+        userManager.sendRunningCallInvitation(socket._id, msg.userId, msg.callId);
     });
 
     socket.on('call:accept', function(msg){
         console.log('call:accept');
 
-        getSocketProperty(socket, 'id', function (idProposer) {
-            Call.addUserToCall(msg.id, idProposer, function(call) {
-                findSocketById(call.caller.id, function (contactSocket) {
-                    contactSocket.emit('call:accept', call);
-                });
-            });
-        });
-
+        userManager.acceptCall(socket._id, msg.id);
     });
 
     socket.on('call:reject', function(msg){

@@ -27,7 +27,8 @@ var userSchema = Mongoose.Schema(
         joinDate: {type: Date, default: Date.now()},
         thumbnail: {type: String, default: 'profile.png'},
         isLdap: Boolean,
-        uuid: [{type: String}]
+        uuid: [{type: String}],
+        isPhone: {type: Boolean, default: false}
     }
 );
 
@@ -41,6 +42,8 @@ userSchema.virtual('updatedStatus')
     });
 
 userSchema.set('toJSON', { getters: true, virtuals: true });
+userSchema.set('toObject', {getters:true, virtuals: true});
+
 
 userSchema.statics.login = function(username, password, callback){
     this.findOne({username: username})
@@ -102,7 +105,7 @@ userSchema.statics.createUserRelation = function(user, idContact, status, callba
       } else if (savedUser) {
           User.populate(savedUser,
               {  path: 'pending accepted requested blocked',
-                  select: 'name username firstSurname lastSurname email thumbnail'
+                  select: 'name username firstSurname lastSurname email thumbnail isPhone'
               }
               ,function(error, populatedData){
                   if (!error && populatedData){
@@ -131,7 +134,7 @@ userSchema.statics.listContacts = function(id, callback){
 userSchema.statics.listUserContacts = function(user, callback) {
     User.populate(user,
         { path: 'pending accepted requested blocked',
-            select: 'name username firstSurname lastSurname email thumbnail'},
+            select: 'name username firstSurname lastSurname email thumbnail isPhone'},
         function(error, populatedData){
             if (error){
                 callback(error);
@@ -170,7 +173,7 @@ userSchema.methods.updateImage = function(filename, callback){
         } else {
             User.populate(savedUser, {
                 path: 'pending accepted requested blocked',
-                select: 'name username firstSurname lastSurname email thumbnail'
+                select: 'name username firstSurname lastSurname email thumbnail isPhone'
             }, callback);
         }
     });
@@ -191,7 +194,7 @@ userSchema.methods.changeRelationStatus = function(oldStatus, newStatus, userId,
                 User.populate(savedUser,
                     {
                         path: 'pending accepted requested blocked',
-                        select: 'name username firstSurname lastSurname email thumbnail'
+                        select: 'name username firstSurname lastSurname email thumbnail isPhone'
                     },
                     callback);
             }
@@ -217,7 +220,7 @@ userSchema.statics.addRelationship = function(userId, relationshipType, requeste
         {safe: true, upsert: true, new: true})
         .populate(
             {   path: 'pending accepted requested blocked',
-                select: 'name username firstSurname lastSurname email thumbnail'
+                select: 'name username firstSurname lastSurname email thumbnail isPhone'
             })
         .exec(callback)
 };
@@ -231,7 +234,7 @@ userSchema.statics.removeRelationship = function(userId, relationshipType, reque
         {safe: true, upsert: true, new: true})
         .populate(
         {   path: 'pending accepted requested blocked',
-            select: 'name username firstSurname lastSurname email thumbnail'
+            select: 'name username firstSurname lastSurname email thumbnail isPhone'
         })
         .exec(callback);
 };
@@ -251,14 +254,14 @@ userSchema.statics.updateRelationship = function(userId, currentRelationshipStat
         })
         .populate(
             {   path: 'pending accepted requested blocked',
-                select: 'name username firstSurname lastSurname email thumbnail'
+                select: 'name username firstSurname lastSurname email thumbnail isPhone'
             })
         .exec(callback);
 
 };
 
 userSchema.statics.addToken = function(userId, token, callback){
-    this.findByIdAndUpdate({_id: userId}, {$addToSet: {uuid: token}},{safe: true, upsert: false, new: true}, callback);
+    this.findByIdAndUpdate({_id: userId}, {$addToSet: {uuid: token}, isPhone: true},{safe: true, upsert: false, new: true}, callback);
 };
 
 userSchema.statics.checkIfRelationshipExists = function(requester, requestee, callback){
@@ -267,7 +270,11 @@ userSchema.statics.checkIfRelationshipExists = function(requester, requestee, ca
             callback(error);
         } else {
             //if (requester.accepted)
-            var contacts = user.accepted.concat(user.requested).concat(user.pending).concat(user.blocked);
+            var contacts = [];
+            contacts = user.accepted !== null? contacts.concat(user.accepted) : contacts;
+            contacts = user.requested !== null? contacts.concat(user.requested) : contacts;
+            contacts = user.blocked !== null? contacts.concat(user.blocked) : contacts;
+
             var contacts = _.pluck(contacts, 'id');
             if (callback){
                 callback(null, _.contains(contacts, requestee));

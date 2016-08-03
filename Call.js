@@ -20,32 +20,37 @@ var CallSchema = new Schema({
 });
 
 CallSchema.statics.addUserToCall = function (idCall, idUser, callback) {
-    this.findById(idCall, function(error, call){
-        if (!error && call){
-            call.callee.addToSet(idUser);
-            call.status = 'ANSWERED';
-            call.save(function(error, savedCall){
-                if (!error && call){
-                    console.log('user: ' +idUser+ ' successfully added to call: '+idCall);
-                    Call.populate(savedCall,
-                        {
-                        path: 'caller callee',
-                        select: 'name username firstSurname lastSurname email thumbnail'
-                        },
-                        function(err, populatedCall){
-                            if (callback){
-                                callback(populatedCall);
-                            }
-                        });
-                }
-                else
-                    console.log('error updating users in call');
-            });
-        }
-        else{
-            console.log('There is some problem!')
-        }
-    });
+    //MODIFIED THIS ON 01/08/2016
+    this.findByIdAndUpdate({_id: idCall},
+        {$addToSet: {callee: idUser}, status: 'ANSWERED'},
+        {safe: true, upsert: true, new: true})
+        .populate(
+            {   path: 'caller callee',
+                select: 'name username firstSurname lastSurname email thumbnail'
+            })
+        .exec(callback);
+    //this.findById(idCall, function(error, call){
+    //    if (!error && call){
+    //        call.callee.addToSet(idUser);
+    //        call.status = 'ANSWERED';
+    //        call.save(function(error, savedCall){
+    //            if (!error && call){
+    //                console.log('user: ' +idUser+ ' successfully added to call: '+idCall);
+    //                Call.populate(savedCall,
+    //                    {
+    //                    path: 'caller callee',
+    //                    select: 'name username firstSurname lastSurname email thumbnail'
+    //                    },
+    //                    callback);
+    //            }
+    //            else
+    //                console.log('error updating users in call');
+    //        });
+    //    }
+    //    else{
+    //        console.log('There is some problem!')
+    //    }
+    //});
 };
 
 CallSchema.statics.updateCallStatus = function (idCall, status) {
@@ -107,6 +112,33 @@ CallSchema.statics.getUserCalls = function (idUser, callback) {
 
     });
 };
+
+CallSchema.statics.createCall = function(callerId, calleeId, callback){
+    this.create({caller: callerId, callee: [calleeId]}, function(err, call){
+        if (err){
+            callback(err, null);
+        } else {
+            Call.populate(call, { path: 'caller callee',  select: 'name username firstSurname lastSurname email thumbnail'}, callback);
+        }
+    });
+};
+
+CallSchema.statics.findCallById = function(callId, callback) {
+    Call.findById(callId).populate({path: 'caller callee', select: 'name username firstSurname lastSurname email thumbnail'}).exec(callback);
+};
+
+function rejectCall (callId, callback) {
+    Call.findByIdAndUpdate(callId,{status: 'CANCELLED'})
+        .populate({
+            path: 'caller callee',
+            select: 'name username firstSurname lastSurname email thumbnail'
+        })
+        .exec(function(err, call){
+            if (!err && call) {
+                if (callback) callback(call);
+            }
+        });
+}
 
 var Call = Mongoose.model('Call', CallSchema);
 

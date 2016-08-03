@@ -8,6 +8,7 @@ var websocket = {};
 var notificationManager;
 var _ = require('underscore');
 var User = require('./../User').User;
+var Call = require('./../Call').Call;
 
 var exposed = {};
 
@@ -256,6 +257,46 @@ exposed.addToken = function(userId, tokenUUID, onSuccess, onError){
     });
 };
 
+
+exposed.sendCallInvitation = function(userId, contactId, onSuccess, onError){
+    Call.createCall(userId, contactId, function(error, call){
+        if (error) {
+            if (onError) onError(error);
+        } else {
+            notificationManager.sendCallRequest(contactId, userId, call);
+            if (onSuccess) onSuccess(call);
+        }
+    });
+};
+
+//this function sends to a third user an invite offer
+exposed.sendRunningCallInvitation = function(userId, contactId, callId, onSuccess, onError){
+    Call.findCallById(callId, function(error, call){
+        if (error) {
+            if (onError) onError(error);
+        } else {
+            notificationManager.sendCallRequest(contactId, userId, call);
+            if (onSuccess) onSuccess(call);
+        }
+    });
+};
+
+exposed.acceptCall = function(userId, callId, onSuccess, onError){
+    Call.addUserToCall(callId, userId, function(error, data){
+        if (error){
+            if (onError) onError(error);
+        } else {
+            notificationManager.sendCallAccept(data.caller.id, data);
+            if (onSuccess) onSuccess(data);
+        }
+    });
+};
+
+exposed.rejectCall = function(userId, contactId, onSuccess, onError){
+
+};
+
+
 var log = function(msg){
     if (logEnabled){
         console.log(msg);
@@ -275,48 +316,3 @@ module.exports = function() {
     notificationManager = require('./NotificationManager')(exposed);
     return exposed;
 };
-
-//
-//function test() {
-//    var connection = Mongoose.connect('mongodb://localhost/rest_test');
-//
-//    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
-//    //    console.log("SUCCESS!!!!");
-//    //}, function(err) {
-//    //    console.log(err);
-//    //});
-//
-//    //exposed.acceptRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
-//    //    console.log("SUCCESS!!!!");
-//    //}, function(err) {
-//    //    console.log(err);
-//    //});
-//
-//    //exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
-//    //    console.log("SUCCESS!!!!");
-//    //}, function(err) {
-//    //    console.log(err);
-//    //});
-//
-//    //exposed.requestRelationship('576aa729154318d5030377bc', '579560fa3e513a710a6bdc3a', function(){
-//    //    console.log("SUCCESS!!!!");
-//    //}, function(err) {
-//    //    console.log(err);
-//    //});
-//
-//    //exposed.rejectRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc', function(){
-//    //    console.log("SUCCESS!!!!");
-//    //}, function(err) {
-//    //    console.log(err);
-//    //});
-//
-//    exposed.deleteRelationship('579560fa3e513a710a6bdc3a', '576aa729154318d5030377bc',function(){
-//        console.log("SUCCESS!!!!");
-//    }, function(err) {
-//        console.log(err);
-//    });
-//
-//
-//}
-
-//test();
