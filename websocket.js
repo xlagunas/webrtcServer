@@ -433,16 +433,16 @@ var socketHandler =  function (socket) {
     socket.on('webrtc:offer', function(msg){
         msg = typeof msg === "string" ? JSON.parse(msg) : msg;
 
-        console.log('webrtc:offer');
-        getSocketProperty(socket, 'id', function(id){
-            findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
-                socket.emit(id+':offer', msg.offer);
-            });
+        console.log('sending webrtc:offer to '+msg.idUser);
+        findContactInRoom('call:'+msg.idCall, msg.idUser, function(contactSocket){
+
+            contactSocket.emit(socket._id+':offer', msg.offer);
         });
     });
 
     socket.on('webrtc:answer', function(msg){
         msg = typeof msg === "string" ? JSON.parse(msg) : msg;
+        msg.answer.type = msg.answer.type.toLowerCase();
 
         console.log('webrtc:answer');
         getSocketProperty(socket, 'id', function(id){
@@ -455,6 +455,10 @@ var socketHandler =  function (socket) {
     socket.on('webrtc:iceCandidate', function(msg){
         msg = typeof msg === "string" ? JSON.parse(msg) : msg;
 
+        if (msg.candidate.sdp){
+            msg.candidate.candidate = msg.candidate.sdp;
+            delete msg.candidate.sdp;
+        }
         console.log('webrtc:iceCandidate '+socket._id);
         getSocketProperty(socket, 'id', function(id){
             findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){

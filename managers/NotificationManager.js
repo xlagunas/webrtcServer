@@ -125,7 +125,8 @@ function sendNotification(destinationId, messageType, message){
 }
 
 function sendNotification(destinationId, messageType, socketMessage, pushMessage){
-    log("Attempting to notify "+destinationId+ ' message: '+socketMessage.toString() );
+    //log("Attempting to notify "+destinationId+ ' message: '+socketMessage.toString() );
+    log("Attempting to notify "+destinationId);
     userManager.websocket().findSocketById(destinationId, function(contactSocket){
         console.log('socket found sending notification');
         contactSocket.emit(messageType, socketMessage);
@@ -134,7 +135,9 @@ function sendNotification(destinationId, messageType, socketMessage, pushMessage
         userManager.getUserTokens(destinationId, function(tokens){
             log('found token, attempting to send push notification');
             log(tokens);
-            pushSender.sendMessage(tokens, pushMessage);
+            pushSender.sendMessage(tokens, pushMessage, function(invalidTokens){
+                userManager.removeTokens(destinationId, invalidTokens);
+            });
         }, function(error){
             log("Error searching for tokens!");
             log(error);

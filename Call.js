@@ -57,11 +57,9 @@ CallSchema.statics.updateCallStatus = function (idCall, status) {
     CallSchema.findByIdAndUpdate(idCall, {status: status},function (error, call){
         if(!error && call){
             console.log('successfully updated status');
-            console.log(call);
         }
         else {
             console.log('error updating status');
-            console.log(error);
         }
     });
 };
@@ -70,11 +68,9 @@ CallSchema.statics.endCall = function (idCall) {
     CallSchema.findByIdAndUpdate(idCall, {end: Date.now()}, function (error, call){
         if (!error && call){
             console.log('successfully updated status');
-            console.log(call);
         }
         else {
             console.log('error updating status');
-            console.log(error);
         }
     });
 };
@@ -105,7 +101,6 @@ CallSchema.statics.getUserCalls = function (idUser, callback) {
         }
         else{
             console.log('error');
-            console.log(error);
             callback({status: 'error', data: null});
         }
 

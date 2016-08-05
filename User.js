@@ -261,7 +261,15 @@ userSchema.statics.updateRelationship = function(userId, currentRelationshipStat
 };
 
 userSchema.statics.addToken = function(userId, token, callback){
-    this.findByIdAndUpdate({_id: userId}, {$addToSet: {uuid: token}, isPhone: true},{safe: true, upsert: false, new: true}, callback);
+    this.findByIdAndUpdate({_id: userId}, {$addToSet: {uuid: token}, isPhone: true},{safe: true, upsert: false, new: true})
+        .populate(
+        {   path: 'pending accepted requested blocked',
+            select: 'name username firstSurname lastSurname email thumbnail isPhone'
+        }).exec(callback);
+};
+
+userSchema.statics.removeTokens = function(userId, tokens, callback){
+    this.findByIdAndUpdate({_id: userId}, {$pullAll: {uuid: tokens}},{safe: true, upsert: false, new: true}, callback);
 };
 
 userSchema.statics.checkIfRelationshipExists = function(requester, requestee, callback){
