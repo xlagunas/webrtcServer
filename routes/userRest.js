@@ -76,7 +76,7 @@ router.get('/:username', passport.authenticate('basic', {session: false}), funct
    userManager.findUsersContaining(req.params.username, function(obtainedUsers){
       res.send(obtainedUsers);
    }, function(err){
-      res.send(500);
+      res.sendStatus(500);
    });
 });
 
@@ -93,17 +93,17 @@ router.put('/token',passport.authenticate('basic', {session: false}), function(r
 router.post('/call/:id', passport.authenticate('basic', {session: false}), function(req, res){
    var contactId = req.params.id;
    userManager.sendCallInvitation(req.user._id, req.params.id, function(data){
-      res.send(200);
+      res.sendStatus(200);
    }, function(error){
-      res.send(500);
+      res.sendStatus(500);
    })
 });
 
 router.post('/call/:id/accept', passport.authenticate('basic', {session: false}), function(req, res){
    userManager.acceptCall(req.user._id, req.params.id, function(data){
-      res.send(200);
+      res.sendStatus(200);
    }, function(error){
-      res.send(500);
+      res.sendStatus(500);
    })
 });
 

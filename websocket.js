@@ -12,6 +12,9 @@ var userManager;
 var socketHandler =  function (socket) {
 
     socket.on('login', function(msg){
+        console.log(msg);
+        msg = typeof msg === "string" ? JSON.parse(msg) : msg;
+
         if (msg && msg.username && msg.password) {
             userManager.login(msg.username, msg.password, function (data) {
                 socket.username = data.username;
@@ -19,6 +22,8 @@ var socketHandler =  function (socket) {
                 socket.status = 'ONLINE';
                 if (!msg.type || msg.type !== "ANDROID") {
                     socket.emit('login', data);
+                } else {
+                    socket.emit('login', {ev: 'ok'});
                 }
             }, function (error) {
                 socket.emit('loginError', error);
@@ -364,38 +369,38 @@ var socketHandler =  function (socket) {
     });
 
     socket.on('call:register', function(msg){
-        getSocketProperty(socket, 'id', function (idProposer){
-            User.findById(idProposer, function (err, user){
-                if (!err && user){
-                    console.log('user: '+idProposer+' joined call room: '+msg.id);
-                    socket.join('call:'+msg.id);
-                    socket.broadcast.to('call:'+msg.id).emit('call:addUser', user);
-                }
-            });
+
+        msg = typeof msg === "string" ? JSON.parse(msg) : msg;
+
+        User.findById(socket._id, function (err, user){
+            if (!err && user){
+                console.log('user: '+socket._id+' joined call room: '+msg.id);
+                socket.join('call:'+msg.id);
+                socket.broadcast.to('call:'+msg.id).emit('call:addUser', user);
+            }
         });
     });
 
     socket.on('call:unregister', function(msg){
-        getSocketProperty(socket, 'id', function (idProposer){
-            User.findById(idProposer, function (err, user){
-                if (!err && user){
-                    console.log('user: '+idProposer+' left call room: '+msg.id);
-                    socket.broadcast.to('call:'+msg.id).emit('call:removeUser', user);
-                    socket.leave('call:'+msg.id);
-                }
-            });
+        msg = typeof msg === "string" ? JSON.parse(msg) : msg;
+
+        User.findById(socket._id, function (err, user){
+            if (!err && user){
+                console.log('user: '+socket._id+' left call room: '+msg.id);
+                socket.broadcast.to('call:'+msg.id).emit('call:removeUser', user);
+                socket.leave('call:'+msg.id);
+            }
         });
     });
 
     socket.on('call:userDetails', function(msg){
-        getSocketProperty(socket, 'id', function(id){
-            User.findById(id, 'username name firstSurname lastSurname thumbnail email', function(error, user){
-                if (!error && user){
-                    findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
-                        socket.emit('call:userDetails', user);
-                    });
-                }
-            });
+        msg = typeof msg === "string" ? JSON.parse(msg) : msg;
+        User.findById(socket._id, 'username name firstSurname lastSurname thumbnail email', function(error, user){
+            if (!error && user){
+                findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
+                    socket.emit('call:userDetails', user);
+                });
+            }
         });
     });
 
@@ -418,21 +423,27 @@ var socketHandler =  function (socket) {
 
 
     socket.on('call:hangup', function (msg){
+        msg = typeof msg === "string" ? JSON.parse(msg) : msg;
+
         console.log('call:hangup, Room id: '+msg.id);
         var rooms = websockets.manager.roomClients[socket.id];
         console.log(rooms);
     });
 
     socket.on('webrtc:offer', function(msg){
-        console.log('webrtc:offer');
-        getSocketProperty(socket, 'id', function(id){
-            findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
-                socket.emit(id+':offer', msg.offer);
-            });
+        msg = typeof msg === "string" ? JSON.parse(msg) : msg;
+
+        console.log('sending webrtc:offer to '+msg.idUser);
+        findContactInRoom('call:'+msg.idCall, msg.idUser, function(contactSocket){
+
+            contactSocket.emit(socket._id+':offer', msg.offer);
         });
     });
 
     socket.on('webrtc:answer', function(msg){
+        msg = typeof msg === "string" ? JSON.parse(msg) : msg;
+        msg.answer.type = msg.answer.type.toLowerCase();
+
         console.log('webrtc:answer');
         getSocketProperty(socket, 'id', function(id){
             findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
@@ -442,6 +453,12 @@ var socketHandler =  function (socket) {
     });
 
     socket.on('webrtc:iceCandidate', function(msg){
+        msg = typeof msg === "string" ? JSON.parse(msg) : msg;
+
+        if (msg.candidate.sdp){
+            msg.candidate.candidate = msg.candidate.sdp;
+            delete msg.candidate.sdp;
+        }
         console.log('webrtc:iceCandidate '+socket._id);
         getSocketProperty(socket, 'id', function(id){
             findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
