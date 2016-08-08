@@ -122,7 +122,7 @@ CallSchema.statics.findCallById = function(callId, callback) {
     Call.findById(callId).populate({path: 'caller callee', select: 'name username firstSurname lastSurname email thumbnail'}).exec(callback);
 };
 
-function rejectCall (callId, callback) {
+CallSchema.statics.rejectCall = function (callId, callback) {
     Call.findByIdAndUpdate(callId,{status: 'CANCELLED'})
         .populate({
             path: 'caller callee',
@@ -133,7 +133,7 @@ function rejectCall (callId, callback) {
                 if (callback) callback(call);
             }
         });
-}
+};
 
 var Call = Mongoose.model('Call', CallSchema);
 

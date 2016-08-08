@@ -259,30 +259,7 @@ var socketHandler =  function (socket) {
         }
     }
 
-    function createCall (callerId, calleeId, callback) {
-        Call.create({caller: callerId, callee: [calleeId]}, function (error, call){
-            if (!error && call) {
-                if (callback) callback(call);
-            }
-        });
-    }
-
-    function populateCall(call, callback) {
-        Call.populate(call,{ path: 'caller callee',  select: 'name username firstSurname lastSurname email thumbnail'}, function(error, popCall){
-            if (!error && popCall){
-                if (callback) callback(popCall);
-            }
-        });
-    }
-
-    function findCallById(callId, callback) {
-        Call.findById(callId, {path: 'caller callee', select: 'name username firstSurname lastSurname email thumbnail'}, function(err, call){
-            if (!err && call) {
-                if (callback) callback(call);
-            }
-        });
-    }
-
+    //TODO REFACTOR TO USERMANAGER
     function rejectCall (callId, callback) {
         Call.findByIdAndUpdate(callId,{status: 'CANCELLED'})
             .populate({
@@ -376,6 +353,7 @@ var socketHandler =  function (socket) {
             if (!err && user){
                 console.log('user: '+socket._id+' joined call room: '+msg.id);
                 socket.join('call:'+msg.id);
+                console.log(socket.username +"shouldn't receive addUser");
                 socket.broadcast.to('call:'+msg.id).emit('call:addUser', user);
             }
         });
@@ -432,6 +410,12 @@ var socketHandler =  function (socket) {
 
     socket.on('webrtc:offer', function(msg){
         msg = typeof msg === "string" ? JSON.parse(msg) : msg;
+        msg.offer.type = msg.offer.type.toLowerCase();
+
+        if (msg.offer.sdp == null){
+            msg.offer.sdp = msg.offer.description;
+            delete msg.offer.description;
+        }
 
         console.log('sending webrtc:offer to '+msg.idUser);
         findContactInRoom('call:'+msg.idCall, msg.idUser, function(contactSocket){
@@ -443,6 +427,10 @@ var socketHandler =  function (socket) {
     socket.on('webrtc:answer', function(msg){
         msg = typeof msg === "string" ? JSON.parse(msg) : msg;
         msg.answer.type = msg.answer.type.toLowerCase();
+        if (msg.answer.sdp == null){
+            msg.answer.sdp = msg.answer.description;
+            delete msg.answer.description;
+        }
 
         console.log('webrtc:answer');
         getSocketProperty(socket, 'id', function(id){

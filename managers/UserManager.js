@@ -306,9 +306,15 @@ exposed.acceptCall = function (userId, callId, onSuccess, onError) {
     });
 };
 
-exposed.rejectCall = function (userId, contactId, onSuccess, onError) {
-
-};
+//exposed.rejectCall = function (userId, contactId, onSuccess, onError) {
+//    Call.rejectCall(userId, contactId, function(err, data){
+//        if (err){
+//            if (onError) onError(error);
+//        } else {
+//            notificationManager.sendRejectCall()
+//        }
+//    });
+//};
 
 
 var log = function (msg) {
