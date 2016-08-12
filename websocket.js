@@ -23,6 +23,9 @@ var socketHandler =  function (socket) {
                 if (!msg.type || msg.type !== "ANDROID") {
                     socket.emit('login', data);
                 } else {
+                    //this helps us track wether or not the user should notify when disconnected
+                    // if android we should not notify since visually, the user doens't know we are connected
+                    socket.type = 'phone';
                     socket.emit('login', {ev: 'ok'});
                 }
             }, function (error) {
@@ -245,9 +248,11 @@ var socketHandler =  function (socket) {
     });
 
     function disconnectOrLogout(socket){
-        socket.status = 'OFFLINE';
-        var id = socket._id;
-        notifyDisconnectionToContacts(id, socket);
+        if (!socket.type) {
+            socket.status = 'OFFLINE';
+            var id = socket._id;
+            notifyDisconnectionToContacts(id, socket);
+        }
     }
 
     //callback is a function whose first parameter is the proposerId
@@ -383,19 +388,24 @@ var socketHandler =  function (socket) {
     });
 
     function findContactInRoom(roomName, contactId, callback){
+        console.log("finding room: "+roomName);
         var room = websockets.adapter.rooms[roomName];
         var found = false;
 
-        for (var socketName in room.sockets){
-            var contactSocket = websockets.connected[socketName];
-            if (contactSocket._id === contactId && callback){
-                callback(contactSocket);
-                found = true;
+        if (room!= null) {
+            for (var socketName in room.sockets) {
+                var contactSocket = websockets.connected[socketName];
+                if (contactSocket._id === contactId && callback) {
+                    callback(contactSocket);
+                    found = true;
+                }
             }
-        }
 
-        if (!found){
-            console.log("not found contact in Room");
+            if (!found) {
+                console.log("not found contact in Room");
+            }
+        } else {
+            console.log("Room not found: "+roomName);
         }
     }
 
@@ -447,11 +457,9 @@ var socketHandler =  function (socket) {
             msg.candidate.candidate = msg.candidate.sdp;
             delete msg.candidate.sdp;
         }
-        console.log('webrtc:iceCandidate '+socket._id);
-        getSocketProperty(socket, 'id', function(id){
-            findContactInRoom('call:'+msg.idCall, msg.idUser, function(socket){
-                socket.emit(id+':iceCandidate', msg.candidate);
-            });
+        findContactInRoom('call:'+msg.idCall, msg.idUser, function(contactSocket){
+            console.log('sending webrtc:iceCandidate from '+socket._id + ' to '+contactSocket._id);
+            contactSocket.emit(socket._id+':iceCandidate', msg.candidate);
         });
     });
 };
