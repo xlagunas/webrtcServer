@@ -31,9 +31,7 @@ app.use('/user', require('./routes/userRest')(userManager, passport));
 app.use('/friendship', require('./routes/friendshipRest')(userManager, passport));
 app.use('/images', express.static(__dirname + '/app/images'));
 
-app.get('/', function (req, res) {
-    res.sendFile(__dirname + '/app/index.html');
-});
+app.use('/app', express.static(__dirname + '/app'));
 
 //enable CORS filter
 app.use(function(req, res, next) {
