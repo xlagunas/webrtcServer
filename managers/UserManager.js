@@ -36,6 +36,37 @@ exposed.userExist = function (username, callback) {
     });
 };
 
+exposed.userWithEmailExist = function (email, callback) {
+    log('Facebook register');
+    User.findByEmail(email, function(error, newUser){
+        if (error){
+            if (callback) {
+                callback(false);
+            }
+        } else {
+            if (callback){
+                callback(newUser != null ? true : false);
+            }
+        }
+    });
+};
+
+//userId is the same so if already assigned, it doesn't matter
+exposed.updateTokenAndProfilePic = function (email, facebookId, thumbnail, onSuccess, onError) {
+    User.updateSocialFB(email, facebookId, thumbnail, function(err, user){
+        if (err) {
+            if (onError){
+                onError(err);
+            }
+        } else {
+            if (onSuccess){
+                onSuccess(user);
+            }
+        }
+    });
+};
+
+
 exposed.createUser = function (newUser, onSuccess, onError) {
     log('Attempting to create new user.');
     User.create(newUser, function (error, newUser) {
