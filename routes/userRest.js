@@ -64,7 +64,28 @@ router.put('/social/fb', function (req, res) {
     userManager.userWithEmailExist(req.body.email, function (userExists) {
         //if User exists, we just add the token and update the image
         if (userExists) {
-            userManager.updateTokenAndProfilePic(req.body.email, req.body.facebookId, req.body.thumbnail, function (user) {
+            userManager.updateFacebookTokenAndProfilePic(req.body.email, req.body.facebookId, req.body.thumbnail, function (user) {
+                res.send(user);
+            }, function (error) {
+                res.sendStatus(404);
+            });
+        }
+        //otherwise just create the new user
+        else {
+            userManager.createUser(req.body, function (createdUser) {
+                res.send(createdUser)
+            }, function (error) {
+                res.sendStatus(404);
+            });
+        }
+    });
+});
+
+router.put('/social/google', function (req, res) {
+    userManager.userWithEmailExist(req.body.email, function (userExists) {
+        //if User exists, we just add the token and update the image
+        if (userExists) {
+            userManager.updateGoogleTokenAndProfilePic(req.body.email, req.body.facebookId, req.body.thumbnail, function (user) {
                 res.send(user);
             }, function (error) {
                 res.sendStatus(404);

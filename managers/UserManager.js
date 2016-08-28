@@ -37,7 +37,6 @@ exposed.userExist = function (username, callback) {
 };
 
 exposed.userWithEmailExist = function (email, callback) {
-    log('Facebook register');
     User.findByEmail(email, function(error, newUser){
         if (error){
             if (callback) {
@@ -52,8 +51,22 @@ exposed.userWithEmailExist = function (email, callback) {
 };
 
 //userId is the same so if already assigned, it doesn't matter
-exposed.updateTokenAndProfilePic = function (email, facebookId, thumbnail, onSuccess, onError) {
+exposed.updateFacebookTokenAndProfilePic = function (email, facebookId, thumbnail, onSuccess, onError) {
     User.updateSocialFB(email, facebookId, thumbnail, function(err, user){
+        if (err) {
+            if (onError){
+                onError(err);
+            }
+        } else {
+            if (onSuccess){
+                onSuccess(user);
+            }
+        }
+    });
+};
+
+exposed.updateGoogleTokenAndProfilePic = function (email, facebookId, thumbnail, onSuccess, onError) {
+    User.updateSocialGoogle(email, facebookId, thumbnail, function(err, user){
         if (err) {
             if (onError){
                 onError(err);
