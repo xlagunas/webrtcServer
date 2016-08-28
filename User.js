@@ -29,7 +29,8 @@ var userSchema = Mongoose.Schema(
         isLdap: Boolean,
         uuid: [{type: String}],
         isPhone: {type: Boolean, default: false},
-        facebookId: {type: String, required: false}
+        facebookId: {type: String, required: false},
+        googleId: {type: String, required: false}
     }
 );
 
@@ -195,6 +196,30 @@ userSchema.statics.updateSocialFB = function (email, facebookId, thumbnail, call
             callback(err, null);
         } else {
             user.facebookId = facebookId;
+            user.thumbnail = thumbnail;
+            user.save(function (error, savedUser) {
+                if (error) {
+                    callback(error, null);
+                } else {
+                    User.populate(savedUser, {
+                        path: 'pending accepted requested blocked',
+                        select: 'name username firstSurname lastSurname email thumbnail isPhone'
+                    }, callback);
+                }
+            });
+        }
+
+
+    });
+};
+
+userSchema.statics.updateSocialGoogle = function (email, googleId, thumbnail, callback) {
+
+    this.findByEmail(email, function (err, user) {
+        if (err) {
+            callback(err, null);
+        } else {
+            user.googleId = googleId;
             user.thumbnail = thumbnail;
             user.save(function (error, savedUser) {
                 if (error) {
