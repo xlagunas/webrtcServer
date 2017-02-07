@@ -8,8 +8,8 @@
 
 
 var Mongoose = require('mongoose'),
-    _ = require('underscore'),
-    ldap = require('./ldap');
+    _ = require('underscore');
+    // ldap = require('./ldap');
 
 var userSchema = Mongoose.Schema(
     {
@@ -26,7 +26,7 @@ var userSchema = Mongoose.Schema(
         requested: [{type: Mongoose.Schema.ObjectId, ref: 'User'}],
         joinDate: {type: Date, default: Date.now()},
         thumbnail: {type: String, default: 'profile.png'},
-        isLdap: Boolean,
+        // isLdap: Boolean,
         uuid: [{type: String}],
         isPhone: {type: Boolean, default: false},
         facebookId: {type: String, required: false},
