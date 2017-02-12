@@ -6,9 +6,12 @@
  * To change this template use File | Settings | File Templates.
  */
 
-var Mongoose = require('mongoose'),
-    Schema = Mongoose.Schema
+var mongoose = require('mongoose'),
+    Schema = mongoose.Schema
     , ObjectId = Schema.ObjectId;
+
+mongoose.Promise = global.Promise;
+mongoose.Promise = require('bluebird');
 
 
 var CallSchema = new Schema({
@@ -135,7 +138,7 @@ CallSchema.statics.rejectCall = function (callId, callback) {
         });
 };
 
-var Call = Mongoose.model('Call', CallSchema);
+var Call = mongoose.model('Call', CallSchema);
 
 exports.Call = Call;
 

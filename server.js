@@ -6,6 +6,8 @@ var passport = require('passport');
 var Strategy = require('passport-http').BasicStrategy;
 var userManager = require('./managers/UserManager')();
 
+mongoose.Promise = global.Promise;
+mongoose.Promise = require('bluebird');
 
 //MongoDB
 mongoose.connect('mongodb://localhost/rest_test');

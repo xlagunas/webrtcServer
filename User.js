@@ -7,11 +7,15 @@
  */
 
 
-var Mongoose = require('mongoose'),
+var mongoose = require('mongoose'),
     _ = require('underscore');
     // ldap = require('./ldap');
 
-var userSchema = Mongoose.Schema(
+mongoose.Promise = global.Promise;
+mongoose.Promise = require('bluebird');
+
+
+var userSchema = mongoose.Schema(
     {
         username: {type: String, index: true, unique: true, required: true},
         name: String,
@@ -20,10 +24,10 @@ var userSchema = Mongoose.Schema(
         email: {type: String, required: true},
         status: {type: String, default: 'OFFLINE'},
         password: {type: String, required: false},
-        accepted: [{type: Mongoose.Schema.ObjectId, ref: 'User'}],
-        pending: [{type: Mongoose.Schema.ObjectId, ref: 'User'}],
-        blocked: [{type: Mongoose.Schema.ObjectId, ref: 'User'}],
-        requested: [{type: Mongoose.Schema.ObjectId, ref: 'User'}],
+        accepted: [{type: mongoose.Schema.ObjectId, ref: 'User'}],
+        pending: [{type: mongoose.Schema.ObjectId, ref: 'User'}],
+        blocked: [{type: mongoose.Schema.ObjectId, ref: 'User'}],
+        requested: [{type: mongoose.Schema.ObjectId, ref: 'User'}],
         joinDate: {type: Date, default: Date.now()},
         thumbnail: {type: String, default: 'profile.png'},
         // isLdap: Boolean,
@@ -365,11 +369,11 @@ userSchema.statics.checkIfRelationshipExists = function (requester, requestee, c
     });
 };
 
-var User = Mongoose.model('User', userSchema);
+var User = mongoose.model('User', userSchema);
 exports.User = User;
 
 function test() {
-    Mongoose.connect('mongodb://localhost/rest_test');
+    mongoose.connect('mongodb://localhost/rest_test');
 
     //User.removeRelationship('576aa729154318d5030377bc', 'accepted', '579560fa3e513a710a6bdc3a', function (error, exists) {
     //    console.log(error);
